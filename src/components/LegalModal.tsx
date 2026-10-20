@@ -92,17 +92,17 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
                 <div className="p-4 rounded-2xl bg-[#141f2d] border border-slate-700/60">
                   <div className="flex items-center gap-3 mb-2 text-teal-400">
                     <Phone className="w-4 h-4" />
-                    <span className="font-semibold text-white text-sm">Direct Phone</span>
+                    <span className="font-semibold text-white text-sm">Direct Intake Line</span>
                   </div>
-                  <p className="text-slate-300 font-mono text-sm">(800) 589-2263</p>
-                  <p className="text-xs text-slate-500 mt-1">Mon - Fri, 8am - 6pm MST</p>
+                  <p className="text-slate-300 font-mono text-sm">(720) 649-0734</p>
+                  <p className="text-xs text-slate-500 mt-1">Available Nationwide</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-[#141f2d] border border-slate-700/60">
                   <div className="flex items-center gap-3 mb-2 text-sky-400">
                     <Mail className="w-4 h-4" />
                     <span className="font-semibold text-white text-sm">Acquisitions Email</span>
                   </div>
-                  <p className="text-slate-300 text-sm">acquisitions@abodemode.com</p>
+                  <p className="text-slate-300 text-sm">team@abodemode.com</p>
                   <p className="text-xs text-slate-500 mt-1">Typical response under 2 hours</p>
                 </div>
               </div>

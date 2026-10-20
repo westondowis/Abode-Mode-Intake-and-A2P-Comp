@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Phone, Menu, X, ArrowUpRight } from 'lucide-react';
+import { Share2, Phone, Menu, X, ArrowUpRight, HardDrive } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 import { ENTITY_DETAILS } from '../data/policyData';
 
@@ -7,12 +7,14 @@ interface HeaderProps {
   onOpenPrivacyPolicy: (sectionId?: string) => void;
   onOpenShareModal: () => void;
   onSelectFlow: (flow: 'sell' | 'buy') => void;
+  onOpenDriveVault: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenPrivacyPolicy,
   onOpenShareModal,
   onSelectFlow,
+  onOpenDriveVault,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -113,6 +115,15 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Desktop Actions */}
           <div className="hidden sm:flex items-center space-x-3">
             <button
+              onClick={onOpenDriveVault}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-cyan-300 bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-700/60 rounded-md transition-all cursor-pointer shadow-sm hover:shadow-cyan-900/40"
+              title="Access Google Drive Property Diligence Vault"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+              <span>Drive Vault</span>
+            </button>
+            <button
               onClick={onOpenShareModal}
               type="button"
               className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-slate-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/60 rounded-md transition-all cursor-pointer"
@@ -188,6 +199,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               About Us
             </a>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenDriveVault();
+              }}
+              className="w-full text-left flex items-center gap-2 px-3 py-2 text-cyan-300 hover:bg-cyan-950/60 rounded cursor-pointer font-bold"
+            >
+              <HardDrive className="w-4 h-4 text-amber-400" />
+              <span>Drive Diligence Vault</span>
+            </button>
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

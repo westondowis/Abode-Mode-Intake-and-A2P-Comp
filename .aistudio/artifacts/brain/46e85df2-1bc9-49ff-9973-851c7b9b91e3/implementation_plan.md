@@ -1,111 +1,144 @@
-# Abode Mode - Commercial Real Estate Platform & Intake Engine
+# A2P 10DLC & CTIA Compliant Land Intake Consent Architecture
 
-A high-trust, commercial real estate acquisition and investor platform for **Abode Mode** (ABODE-MODE LLC), providing zero-login land intake pipelines ("Sell Land" & "Buy Land"), direct Google Apps Script / Google Sheets synchronization with `no-cors` mode, one-click sharing, and an isolated A2P 10DLC carrier-compliant Privacy Policy overlay.
+Implement cellular carrier-grade (A2P 10DLC / CTIA / TCR) consent mechanisms across Abode Mode's Land Acquisition and Cash Offer intake pipelines. The update introduces dedicated, unchecked-by-default, optional SMS consent checkboxes with verbatim carrier disclosures, mandatory non-sharing covenants, live legal links, and audit-ready timestamped payload dispatching to the Google Apps Script webhook and local storage.
 
----
-
-### User Review & Critical Decisions
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following 3 mandatory technical adjustments have been incorporated into this revised plan:
+> The following user preferences and carrier compliance constraints govern this implementation:
 
-1. **Web Form CORS & Dispatch (`src/services/leadSubmission.ts`)**:
-   - Web submissions use `mode: 'no-cors'` via `fetch` to post the JSON string to the Google Apps Script Web App URL so browser CORS preflights never block submission.
-   - Every submission automatically saves an immediate backup copy in `localStorage` (`abode_leads_backup`) to guarantee zero data loss.
-2. **A2P 10DLC Consent Architecture**:
-   - The two SMS checkboxes (**Marketing** and **Transactional / Order Updates**) are **UNCHECKED by default** and **STRICTLY OPTIONAL**. Form submission is never blocked if a seller or buyer chooses not to opt in to text messages, ensuring full compliance with carrier non-conditional consent standards.
-   - The exact statutory non-sharing disclaimer is rendered directly below the phone input field:
-     *"No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with or sold to any third parties under any circumstances."*
-3. **Endpoint Security**:
-   - The Google Apps Script Web App URL is loaded securely from an environment variable (`import.meta.env.VITE_APPS_SCRIPT_URL`) or internal configuration constant (`DEFAULT_APPS_SCRIPT_URL`). It is never exposed as an editable public input. If not configured, the app seamlessly defaults to a mock simulation with local storage recording.
+- **Confirmed Decision 1 (Form Placement)**: Integrate the compliance architecture directly into the active inquiry pipeline for both Selling and Buying land flows (prior to final submission), featuring distinct optional checkboxes for transactional and marketing communications with the exact verbatim A2P/CTIA disclosure language.
+- **Confirmed Decision 2 (Data Dispatch & Audit)**: Wire form submissions into `submitLead` (`src/services/leadSubmission.ts`) dispatching to the Google Apps Script Web App URL (`mode: 'no-cors'`), storing timestamped consent (`consentTimestamp`, `smsMarketingConsent`, `smsTransactionalConsent`, `consentIp`, `userAgent`), and persisting an immediate encrypted local backup.
+- **Confirmed Decision 3 (Standalone Component)**: Package and export the user's `LandInquiryForm` component alongside the main pipeline so it can also be utilized as a dedicated express modal or standalone embed without regressions.
 
 ---
 
-### 1. Overview & Core Concept
+## 1. Overview & Core Concept
 
-- **What It Does**: Refactors the site into an institutional, consumer-facing commercial real estate landing page. Eliminates all developer audit matrices, verification checklists, and compliance ribbons from the main page.
-- **Target Audience**: Residential property and vacant land owners in Colorado and Texas seeking as-is cash sales with zero commissions, as well as land buyers/investors submitting purchase criteria.
-- **Key Value**: Zero authentication friction (no Google login popups or account creation), guaranteed carrier A2P 10DLC compliance running cleanly in the background, instant private Google Sheet row appending with email notifications, and swift one-click sharing.
-
----
-
-### 2. User Experience & Visual Design
-
-- **Key User Flows**:
-  1. *Header & Hero*: Clean header with illustrated Broker mark, direct phone lines for Colorado ((719) 502-7119) and Texas ((817) 756-9550), nav anchors, and "Share Platform" button. Hero presents institutional value proposition with dual choice cards: **"I Want to Sell Land"** and **"I Want to Buy Land"**.
-  2. *Interactive Intake Pipelines*:
-     - **Flow A ("Sell Land")**: Step 1 (Parcel Location & APN/Acreage) &rarr; Step 2 (Characteristics: Access, Utilities, Topography) &rarr; Step 3 (Situation, Timeline, Target Cash Price) &rarr; Step 4 (Owner Contact, Phone with non-sharing disclaimer, and 2 optional unchecked A2P checkboxes).
-     - **Flow B ("Buy Land")**: Step 1 (Target Geography) &rarr; Step 2 (Acreage & Intended Use) &rarr; Step 3 (Capital Terms & Budget) &rarr; Step 4 (Buyer Contact with non-sharing disclaimer and 2 optional unchecked A2P checkboxes).
-  3. *Submission Confirmation*: Dispatches unauthenticated `no-cors` POST to Google Apps Script, records to `localStorage`, and presents an elegant confirmation card with reference ID, assigned desk, and next steps.
-  4. *How It Works (3-Step Overview)*: 1. Parcel Analysis & Valuation &rarr; 2. Transparent Written Offer &rarr; 3. Closing & Wire Disbursement via licensed title company.
-  5. *About Abode Mode*: High-trust corporate background on ABODE-MODE LLC and our direct principal acquisition criteria.
-  6. *Dedicated Privacy Policy Overlay*: Opened via footer link, cookie banner, or form hyperlink as a full-screen clean overlay with an X button, containing all 8 carrier clauses with zero audit clutter.
-
-- **Visual Identity & Theme**:
-  - *Palette*: Night (`#00171C`) primary canvas, Field Teal (`#0A4251`) cards and navbar, Mist (`#88BBD8`) subtle accents and dividers, Warm Gold (`#F2C864`) primary action buttons.
-  - *Typography*: Plus Jakarta Sans for UI/forms paired with Source Serif 4 for headlines.
-  - *Brand Asset*: Official illustrated Broker handshake mark (`abode_mode_broker_1792084803928.jpg` / `abode_broker_1790971379949.jpg`) in header and footer.
-  - *Zero-Pill Discipline*: Unboxed text with subtle typographic separators (`·`, `/`); no fake status tickers, code comments (`//`), or pulsing dots.
+- **What It Does**: Upgrades all seller and buyer intake surfaces to achieve 100% compliance with AT&T, Verizon, T-Mobile, and CTIA carrier guidelines. Landowners submitting acreage details or parcel IDs can request evaluation and offers without being coerced into SMS subscriptions, while opting-in leads have their explicit consent timestamped for compliance audits.
+- **Target Audience / Persona**: Landowners selling rural, residential, or commercial acreage nationwide; retail/institutional land buyers seeking property corridors; telecom carrier compliance auditors reviewing 10DLC registration campaign landing pages.
+- **Key Value**: Guarantees zero campaign rejection by carrier compliance algorithms (The Campaign Registry / Twilio / Bandwidth / Sinch), preserves landowner trust through strict non-sharing data covenants, and guarantees uninterrupted lead delivery.
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
+## 2. User Experience & Visual Design
 
-- **Decision 1: `mode: 'no-cors'` for Apps Script Web App**
-  - *Chosen Approach*: Standard browser `fetch` using `mode: 'no-cors'` and `Content-Type: 'text/plain'` with JSON stringified payload.
-  - *Why*: Google Apps Script redirects (`302 Moved Temporarily`) from `script.google.com` to `script.googleusercontent.com` on POST, causing standard CORS preflight failures in browser SPAs. `no-cors` allows the submission to reach the Apps Script endpoint reliably.
-- **Decision 2: Optional, Unchecked A2P 10DLC Checkboxes**
-  - *Chosen Approach*: The two checkboxes (Marketing & Transactional) are independent, unchecked by default, and optional.
-  - *Why*: The CTIA and TCR strictly prohibit making SMS consent a mandatory condition of inquiry or purchase. If unchecked, the user can still submit and receive follow-up via email or direct phone call.
-- **Decision 3: Config Constant / Environment Variable for Endpoint**
-  - *Chosen Approach*: Configured via `import.meta.env.VITE_APPS_SCRIPT_URL` with a fallback constant and automatic mock simulator if unconfigured.
-  - *Why*: Prevents tampering and ensures clean out-of-the-box operation while allowing the owner to link their private script anytime.
+### Key User Flows
 
----
-
-### 4. Technical Architecture & Component Mapping
+1. **Seller or Buyer Step Progression**: The landowner enters property details (APN, address, acreage, condition) through Steps 1–3 in the high-contrast slate-and-gold interface.
+2. **Step 4: Contact & Verification Review**:
+   - The user enters their Full Legal Name, Email, and Mobile Phone Number.
+   - Immediately below the phone field, a highlighted statutory banner displays the mandatory Carrier Data Privacy Covenant.
+   - Directly beneath the covenant, two distinct, unbundled, unchecked checkboxes appear:
+     - **Checkbox 1 (Informational / Valuation Updates)**: Optional consent for property valuation, offer review, and closing milestones.
+     - **Checkbox 2 (Inventory & Cash Programs)**: Optional consent for promotional alerts and new land inventory.
+   - Both checkboxes feature live clickable links to the **Privacy Policy** and **Terms of Service** modals.
+   - The user can leave both unchecked and click **"Request Cash Offer"** / **"Submit Land Inquiry"** without hindrance.
+3. **Audit Dispatch & Success State**:
+   - On submission, the pipeline records the exact timestamp, consent state (`boolean`), client IP hint, and user agent.
+   - A success dossier is displayed with confirmation details and instant Google Drive Vault archiving.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        Abode Mode Client App                          │
-├──────────────────────┬───────────────────────┬────────────────────────┤
-│     Header & Nav     │   Acquisitions Hero   │  One-Click Share Tool  │
-│ (Broker Mark + Desks)│  (Dual Choice Cards)  │(navigator.share/toast) │
-├──────────────────────┴───────────────────────┴────────────────────────┤
-│                 Interactive Multi-Step Lead Intake                    │
-│   ┌───────────────────────────────┐   ┌───────────────────────────┐   │
-│   │ Flow A: "I Want to Sell Land" │   │Flow B: "I Want to Buy Land"│  │
-│   │ • Location & APN              │   │ • Target Geography        │   │
-│   │ • Access & Utilities          │   │ • Acreage & Use Type      │   │
-│   │ • Situation & Target Price    │   │ • Capital & Budget        │   │
-│   │ • Contact + 2 Optional Checks │   │ • Buyer Info + 2 Checks   │   │
-│   └──────────────┬────────────────┘   └─────────────┬─────────────┘   │
-│                  └──────────────────┬───────────────┘                 │
-│                                     ▼                                 │
-│                        Submission Orchestrator                        │
-│            ┌────────────────────────┴────────────────────────┐        │
-│            ▼                                                 ▼        │
-│   localStorage Backup                          Google Apps Script     │
-│   (Instant Offline Redundancy)                 URL (no-cors fetch)    │
-└──────────────────────────────────────────────────────────────┬────────┘
-                                                               │ (JSON)
-                                                               ▼
-                                                  ┌─────────────────────┐
-                                                  │ Private Google Sheet│
-                                                  │ + MailApp Email to  │
-                                                  │ WDowis@Abode-Mode   │
-                                                  └─────────────────────┘
+│                        STEP 4: CONTACT & VERIFICATION                  │
+├────────────────────────────────────────────────────────────────────────┤
+│  Full Legal Name: [ Johnathan Miller                                 ] │
+│  Email Address:   [ john@example.com                                 ] │
+│  Mobile Phone:    [ (720) 649-0734                                   ] │
+│                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ 🔒 CARRIER DATA PRIVACY COVENANT                                 │  │
+│  │ "No mobile information will be shared with third parties or      │  │
+│  │ affiliates for marketing or promotional purposes. All the above  │  │
+│  │ categories exclude text messaging originator opt-in data and     │  │
+│  │ consent; this information will not be shared with or sold to     │  │
+│  │ any third parties under any circumstances."                      │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                        │
+│  [ ] I agree to receive recurring informational and transactional    │
+│      text messages from Abode Mode at the phone number provided...     │
+│      Reply STOP to unsubscribe, HELP for help. View Privacy & Terms.   │
+│                                                                        │
+│  [ ] I agree to receive marketing updates on new inventory...          │
+│                                                                        │
+│  [  ← BACK  ]                                [ GET CASH OFFER → ]      │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Files to Create & Update:
-1. `src/services/leadSubmission.ts`: Submission service supporting `mode: 'no-cors'` dispatch to `VITE_APPS_SCRIPT_URL`, `localStorage` backup logging, and mock fallback.
-2. `src/components/Header.tsx`: Clean commercial header with Broker mark, wordmark, Colorado and Texas desk numbers, and "Share Platform" button.
-3. `src/components/HeroSection.tsx`: Straightforward land acquisition hero with dual interactive choice cards ("I Want to Sell Land" & "I Want to Buy Land").
-4. `src/components/IntakePipeline.tsx`: High-trust step-by-step intake forms for Sell and Buy flows with the two optional unchecked A2P checkboxes and carrier non-sharing notice.
-5. `src/components/HowItWorks.tsx`: 3-step transparent overview for sellers (Analysis &rarr; Written Offer &rarr; Title Escrow Closing).
-6. `src/components/AboutUs.tsx`: Professional corporate profile of ABODE-MODE LLC.
-7. `src/components/PrivacyPolicyOverlay.tsx`: Isolated full-page overlay with X button rendering the full 8 carrier-mandated clauses.
-8. `src/components/ShareModal.tsx`: Native Web Share API + clipboard fallback.
-9. `src/components/CookieBanner.tsx`: Clean, unobtrusive bottom cookie notice.
-10. `src/components/Footer.tsx`: Brand wordmark, Colorado & Texas desks, legal attribution, and Privacy/Terms links.
-11. `src/App.tsx`: Unified single-page view orchestrating all components.
+### Visual Identity & Theme
+- **Color Tokens**: Rich deep navy slate (`#00171C`), forest teal (`#0A4251`), soft amber/gold accents (`#F9C54B` / `#F2C864`), slate borders (`#D5DDE0`), and high-contrast dark text.
+- **Typography & Layout**: Clean typography, bold mono labels (`font-mono text-xs font-bold uppercase`), unboxed metadata, and high-readability consent text ($12\text{px}$ text with $1.5$ line-height).
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Separate Transactional & Marketing Consents**
+  - *Chosen Approach*: Provide two dedicated checkboxes (one for informational valuation updates, one for marketing inventory) both defaulted to `false`.
+  - *Why*: Carrier review boards strictly reject single "catch-all" checkboxes or forms where submitting an inquiry forces marketing subscription.
+  - *Alternatives Considered*: Single combined checkbox. Rejected due to recent CTIA carrier audit failure rates.
+
+- **Decision 2: Unbundled Legal Links vs Inline Agreement**
+  - *Chosen Approach*: Legal terms (Privacy Policy and Terms of Service) are referenced as live clickable modal triggers rather than bundling acceptance of terms with SMS consent.
+  - *Why*: A2P 10DLC prohibits bundling SMS opt-in with general Terms of Service agreements.
+
+- **Decision 3: Fail-Safe Asynchronous Dispatching**
+  - *Chosen Approach*: Send payload to Google Apps Script using `mode: 'no-cors'`, store instantaneous backup in `localStorage` (`abode_leads_backup`), and generate downloadable Drive dossiers.
+  - *Why*: Ensures zero lost leads even if ad blockers or network CORS policies interfere with the Google script endpoint.
+
+---
+
+## 4. Technical Architecture & Data Strategy
+
+```
+┌────────────────────────────────────────────────────────┐
+│             Land Inquiry / Intake Surfaces             │
+│   • IntakePipeline.tsx (Step 4 Contact)               │
+│   • LandInquiryForm.tsx (Dedicated Express Embed)      │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│             Consent Audit Normalizer                   │
+│   • fullName, phone, propertyAddress / APN             │
+│   • smsConsent: boolean (default false)                │
+│   • consentTimestamp: ISO String or null               │
+│   • legalDisclosureVerbatim: string                    │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+┌─────────────────────────┐ ┌───────────────────────────┐
+│ Google Apps Script      │ │ Browser Local Backup      │
+│ Webhook (no-cors)       │ │ localStorage Key:         │
+│ import.meta.env.        │ │ 'abode_leads_backup'      │
+│ VITE_APPS_SCRIPT_URL    │ └───────────────────────────┘
+└─────────────────────────┘
+```
+
+### State & Payload Specifications
+
+```typescript
+export interface A2P10DLCConsentData {
+  smsConsent: boolean;
+  smsMarketingConsent: boolean;
+  smsTransactionalConsent: boolean;
+  consentTimestamp: string | null;
+  nonSharingCovenantAccepted: boolean;
+  disclosureVersion: string;
+}
+```
+
+---
+
+## Verification Plan
+
+### Automated Build Verification
+1. Run `npm run lint` to ensure zero TypeScript errors or missing imports.
+2. Run `compile_applet` to verify compilation.
+
+### Compliance Manual Verification
+1. Verify checkboxes load unchecked by default (`checked === false`).
+2. Verify submitting the form with checkboxes left unchecked succeeds and submits without validation errors.
+3. Verify links to "Privacy Policy" and "Terms of Service" open the respective modals.
+4. Verify non-sharing disclosure verbatim text matches carrier requirements exactly.

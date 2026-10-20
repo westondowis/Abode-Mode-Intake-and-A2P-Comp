@@ -1,16 +1,20 @@
 import React from 'react';
-import { Phone, Mail, ArrowUp, Share2, Lock, Globe } from 'lucide-react';
+import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive } from 'lucide-react';
 import { BrandWordmark } from './brand/BrandWordmark';
 import { ENTITY_DETAILS } from '../data/policyData';
 
 interface FooterProps {
   onOpenPrivacyPolicy: (sectionId?: string) => void;
+  onOpenTerms?: () => void;
   onOpenShareModal: () => void;
+  onOpenDriveVault?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenPrivacyPolicy,
+  onOpenTerms,
   onOpenShareModal,
+  onOpenDriveVault,
 }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -83,13 +87,32 @@ export const Footer: React.FC<FooterProps> = ({
             </h4>
             <ul className="space-y-2 text-xs text-slate-300">
               <li>
-                <button
-                  onClick={() => onOpenPrivacyPolicy()}
+                <a
+                  href="/privacy"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenPrivacyPolicy();
+                  }}
                   className="hover:text-[#F2C864] transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5 text-[#88BBD8]" />
                   <span>Privacy Policy &amp; 10DLC</span>
-                </button>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/terms"
+                  onClick={(e) => {
+                    if (onOpenTerms) {
+                      e.preventDefault();
+                      onOpenTerms();
+                    }
+                  }}
+                  className="hover:text-[#F2C864] transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Globe className="w-3.5 h-3.5 text-[#88BBD8]" />
+                  <span>Terms of Service</span>
+                </a>
               </li>
               <li>
                 <button
@@ -107,6 +130,17 @@ export const Footer: React.FC<FooterProps> = ({
                   CTIA STOP / HELP Protocols
                 </button>
               </li>
+              {onOpenDriveVault && (
+                <li>
+                  <button
+                    onClick={onOpenDriveVault}
+                    className="hover:text-[#F2C864] transition-colors cursor-pointer flex items-center gap-1.5 text-cyan-300"
+                  >
+                    <HardDrive className="w-3.5 h-3.5 text-[#F2C864]" />
+                    <span>Google Drive Diligence Vault</span>
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   onClick={onOpenShareModal}

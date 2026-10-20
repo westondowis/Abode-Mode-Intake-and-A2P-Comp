@@ -15,7 +15,9 @@ import {
   Compass, 
   Zap, 
   AlertCircle,
-  FileCheck
+  FileCheck,
+  HardDrive,
+  ShieldCheck
 } from 'lucide-react';
 import { submitLead, LeadPayload } from '../services/leadSubmission';
 import { ENTITY_DETAILS } from '../data/policyData';
@@ -25,6 +27,8 @@ interface IntakePipelineProps {
   activeFlow?: 'sell' | 'buy';
   onFlowChange?: (flow: 'sell' | 'buy') => void;
   onOpenPrivacyPolicy: (sectionId?: string) => void;
+  onOpenTerms?: () => void;
+  onOpenDriveVault?: () => void;
 }
 
 export const IntakePipeline: React.FC<IntakePipelineProps> = ({
@@ -32,6 +36,8 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
   activeFlow: controlledFlow,
   onFlowChange,
   onOpenPrivacyPolicy,
+  onOpenTerms,
+  onOpenDriveVault,
 }) => {
   const [activeFlow, setActiveFlow] = useState<'sell' | 'buy'>(controlledFlow || initialFlow);
   const [currentStep, setCurrentStep] = useState(1);
@@ -138,9 +144,14 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
       fullName,
       phone,
       email,
-      smsConsentMarketing: consentMarketing,
+      smsTransactionalConsent: consentTransactional,
+      smsMarketingConsent: consentMarketing,
       smsConsentTransactional: consentTransactional,
+      smsConsentMarketing: consentMarketing,
       smsConsent: consentMarketing || consentTransactional,
+      consentTimestamp: consentMarketing || consentTransactional ? new Date().toISOString() : null,
+      disclosureVersion: 'CTIA_2026_V1',
+      nonSharingCovenantAccepted: true,
       state: activeFlow === 'sell' ? sellState : buyTargetStates,
       county: activeFlow === 'sell' ? sellCounty : buyTargetCounties,
       parcelOrAddress:
@@ -202,7 +213,7 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
               onClick={() => handleFlowSwitch('buy')}
               className={`flex-1 py-3 px-4 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 activeFlow === 'buy'
-                  ? 'bg-[#F2C864] text-[#00171C] shadow-md'
+                  ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 shadow-md'
                   : 'text-slate-200 hover:text-white'
               }`}
             >
@@ -250,7 +261,17 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
               </div>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
+              {onOpenDriveVault && (
+                <button
+                  onClick={onOpenDriveVault}
+                  type="button"
+                  className="px-6 py-2.5 bg-[#F2C864] hover:bg-[#e0b853] text-[#00171C] text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <HardDrive className="w-4 h-4" />
+                  <span>Archive to Google Drive Vault</span>
+                </button>
+              )}
               <button
                 onClick={handleReset}
                 type="button"
@@ -758,37 +779,21 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
                     </div>
                   </div>
 
-                  {/* MANDATORY STATUTORY NON-SHARING DISCLAIMER DIRECTLY BELOW PHONE */}
-                  <div className="p-3.5 bg-[#F3F5F6] rounded border border-[#D5DDE0] text-xs text-slate-600 leading-relaxed">
-                    <strong className="text-slate-900 block mb-1 font-mono text-[11px] uppercase">
-                      Carrier Data Privacy Covenant:
-                    </strong>
-                    &ldquo;No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with or sold to any third parties under any circumstances.&rdquo;
+                  {/* STATUTORY CARRIER DATA PRIVACY COVENANT DIRECTLY BELOW PHONE */}
+                  <div className="p-3.5 bg-[#00171C] rounded border border-[#0A4251] text-xs text-slate-300 leading-relaxed shadow-sm">
+                    <div className="flex items-center gap-1.5 text-[#F9C54B] font-mono text-[11px] font-bold uppercase tracking-wide mb-1">
+                      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>🔒 CARRIER DATA PRIVACY COVENANT:</span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                      No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with or sold to any third parties under any circumstances.
+                    </p>
                   </div>
 
-                  {/* TWO DISTINCT, UNCHECKED BY DEFAULT, OPTIONAL CHECKBOXES */}
+                  {/* TWO SEPARATE, UNBUNDLED, OPTIONAL CHECKBOXES */}
                   <div className="space-y-3 pt-1">
-                    {/* Checkbox 1: Marketing */}
-                    <div className="flex items-start gap-3 p-3 bg-white rounded border border-[#D5DDE0]">
-                      <div className="pt-0.5">
-                        <input
-                          id="sms-consent-marketing"
-                          type="checkbox"
-                          checked={consentMarketing}
-                          onChange={(e) => setConsentMarketing(e.target.checked)}
-                          className="w-4 h-4 text-[#0A4251] border-slate-300 rounded focus:ring-[#0A4251] cursor-pointer"
-                        />
-                      </div>
-                      <label
-                        htmlFor="sms-consent-marketing"
-                        className="text-xs text-slate-700 leading-relaxed cursor-pointer select-none"
-                      >
-                        I consent to receive marketing text messages from ABODE-MODE at the phone number provided. Frequency may vary. Message &amp; data rates may apply. Text HELP for assistance, reply STOP to opt out.
-                      </label>
-                    </div>
-
-                    {/* Checkbox 2: Non-Marketing / Transactional */}
-                    <div className="flex items-start gap-3 p-3 bg-white rounded border border-[#D5DDE0]">
+                    {/* Checkbox 1: Transactional / Valuation Updates */}
+                    <div className="flex items-start gap-3 p-3.5 bg-white rounded border border-[#D5DDE0] hover:border-[#0A4251] transition-colors">
                       <div className="pt-0.5">
                         <input
                           id="sms-consent-transactional"
@@ -802,21 +807,76 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
                         htmlFor="sms-consent-transactional"
                         className="text-xs text-slate-700 leading-relaxed cursor-pointer select-none"
                       >
-                        I consent to receive non-marketing text messages from ABODE-MODE about my order updates, appointment reminders etc. Frequency may vary. Message &amp; data rates may apply. Text HELP for assistance, reply STOP to opt out.
+                        I agree to receive transactional and informational text messages from <strong className="text-slate-900">Abode Mode</strong> at the phone number provided regarding my land property inquiry, valuation assessments, cash offer status, and closing coordination. Message and data rates may apply. Message frequency varies. Reply <strong className="text-slate-900">STOP</strong> to cancel at any time, or reply <strong className="text-slate-900">HELP</strong> for assistance. Consent is optional and not a condition of submitting an inquiry or receiving an offer. View our{' '}
+                        <a
+                          href="/privacy"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onOpenPrivacyPolicy('mobile-sms-privacy');
+                          }}
+                          className="text-[#0A4251] underline font-semibold hover:text-[#00171C]"
+                        >
+                          Privacy Policy
+                        </a>{' '}
+                        and{' '}
+                        <a
+                          href="/terms"
+                          onClick={(e) => {
+                            if (onOpenTerms) {
+                              e.preventDefault();
+                              onOpenTerms();
+                            }
+                          }}
+                          className="text-[#0A4251] underline font-semibold hover:text-[#00171C]"
+                        >
+                          Terms of Service
+                        </a>
+                        .
                       </label>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 pl-1 leading-snug">
-                      Consent is not a condition of inquiry or purchase. You may view our{' '}
-                      <button
-                        type="button"
-                        onClick={() => onOpenPrivacyPolicy('mobile-sms-privacy')}
-                        className="text-[#0A4251] underline font-semibold hover:text-[#00171C] cursor-pointer"
+                    {/* Checkbox 2: Marketing / Inventory Programs */}
+                    <div className="flex items-start gap-3 p-3.5 bg-white rounded border border-[#D5DDE0] hover:border-[#0A4251] transition-colors">
+                      <div className="pt-0.5">
+                        <input
+                          id="sms-consent-marketing"
+                          type="checkbox"
+                          checked={consentMarketing}
+                          onChange={(e) => setConsentMarketing(e.target.checked)}
+                          className="w-4 h-4 text-[#0A4251] border-slate-300 rounded focus:ring-[#0A4251] cursor-pointer"
+                        />
+                      </div>
+                      <label
+                        htmlFor="sms-consent-marketing"
+                        className="text-xs text-slate-700 leading-relaxed cursor-pointer select-none"
                       >
-                        Privacy Policy
-                      </button>{' '}
-                      for complete data protections.
-                    </p>
+                        I agree to receive promotional and marketing text messages from <strong className="text-slate-900">Abode Mode</strong> at the phone number provided regarding new land inventory, special cash buying programs, and investment updates. Message and data rates may apply. Message frequency varies. Reply <strong className="text-slate-900">STOP</strong> to opt out, <strong className="text-slate-900">HELP</strong> for help. Consent is not a condition of purchase or sale. View our{' '}
+                        <a
+                          href="/privacy"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onOpenPrivacyPolicy('mobile-sms-privacy');
+                          }}
+                          className="text-[#0A4251] underline font-semibold hover:text-[#00171C]"
+                        >
+                          Privacy Policy
+                        </a>{' '}
+                        and{' '}
+                        <a
+                          href="/terms"
+                          onClick={(e) => {
+                            if (onOpenTerms) {
+                              e.preventDefault();
+                              onOpenTerms();
+                            }
+                          }}
+                          className="text-[#0A4251] underline font-semibold hover:text-[#00171C]"
+                        >
+                          Terms of Service
+                        </a>
+                        .
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
