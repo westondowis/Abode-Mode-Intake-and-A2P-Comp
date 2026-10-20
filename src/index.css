@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+:root {
+  --brand-night: #00171C;
+  --brand-field-teal: #0A4251;
+  --brand-mist: #88BBD8;
+  --brand-gold: #F2C864;
+}
+
+body {
+  background-color: #061116;
+  color: #f1f5f9;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+.serif-title {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.cinzel-text {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.12em;
+}
+
+/* Glow effects matching user attachment */
+.glow-seller {
+  box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.glow-seller:hover {
+  box-shadow: 0 0 45px -2px rgba(245, 158, 11, 0.28);
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+.glow-buyer {
+  box-shadow: 0 0 35px -5px rgba(14, 165, 233, 0.15);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+.glow-buyer:hover {
+  box-shadow: 0 0 45px -2px rgba(14, 165, 233, 0.28);
+  border-color: rgba(14, 165, 233, 0.6);
+}
+
+/* Custom scrollbars matching Field Teal and Night */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #00171C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0A4251;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #14596b;
+}
+
+/* Custom Print View for Carrier Submissions & Regulatory Filings */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  header,
+  footer,
+  aside,
+  nav,
+  .no-print,
+  button,
+  input,
+  select,
+  textarea {
+    display: none !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+  }
+
+  .print-surface {
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    color: #111827 !important;
+  }
+
+  .compliance-callout-print {
+    border: 2px solid #0A4251 !important;
+    background-color: #f8fafc !important;
+    color: #00171C !important;
+    page-break-inside: avoid;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+
+  a {
+    text-decoration: underline !important;
+    color: #0A4251 !important;
+  }
+}

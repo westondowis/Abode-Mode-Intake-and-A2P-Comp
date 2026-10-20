@@ -1,0 +1,6 @@
+{
+  "name": "Abode Mode - Land Acquisition & Sales Platform",
+  "description": "Modern real estate platform to buy and sell land across the U.S. with instant property valuation, interactive parcel mapping, Google Tasks review workflows, and Google Contacts synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
