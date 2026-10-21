@@ -30,6 +30,8 @@ export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/drive.scripts',
   'https://www.googleapis.com/auth/tasks',
   'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
 ];
 
 const provider = new GoogleAuthProvider();

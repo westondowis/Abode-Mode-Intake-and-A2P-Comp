@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Phone, Menu, X, ArrowUpRight, HardDrive } from 'lucide-react';
+import { Share2, Phone, Menu, X, ArrowUpRight, HardDrive, FileSpreadsheet } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 import { ENTITY_DETAILS } from '../data/policyData';
 
@@ -8,6 +8,7 @@ interface HeaderProps {
   onOpenShareModal: () => void;
   onSelectFlow: (flow: 'sell' | 'buy') => void;
   onOpenDriveVault: () => void;
+  onOpenSheetsHub: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenShareModal,
   onSelectFlow,
   onOpenDriveVault,
+  onOpenSheetsHub,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -124,6 +126,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Drive Vault</span>
             </button>
             <button
+              onClick={onOpenSheetsHub}
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-300 bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-700/60 rounded-md transition-all cursor-pointer shadow-sm hover:shadow-emerald-900/40"
+              title="Access Google Sheets Lead Pipeline Hub"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Sheets Sync</span>
+            </button>
+            <button
               onClick={onOpenShareModal}
               type="button"
               className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-slate-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-800/60 rounded-md transition-all cursor-pointer"
@@ -208,6 +219,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <HardDrive className="w-4 h-4 text-amber-400" />
               <span>Drive Diligence Vault</span>
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenSheetsHub();
+              }}
+              className="w-full text-left flex items-center gap-2 px-3 py-2 text-emerald-300 hover:bg-cyan-950/60 rounded cursor-pointer font-bold"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>Sheets Pipeline Hub</span>
             </button>
             <button
               onClick={() => {

@@ -11,6 +11,7 @@ import { ShareModal } from './components/ShareModal';
 import { CookieBanner } from './components/CookieBanner';
 import { Footer } from './components/Footer';
 import { GoogleDriveVaultModal } from './components/GoogleDriveVaultModal';
+import { GoogleSheetsHubModal } from './components/GoogleSheetsHubModal';
 import { X } from 'lucide-react';
 
 export default function App() {
@@ -21,8 +22,9 @@ export default function App() {
   const [expressOfferModalOpen, setExpressOfferModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [driveVaultOpen, setDriveVaultOpen] = useState(false);
+  const [sheetsHubOpen, setSheetsHubOpen] = useState(false);
 
-  // Check URL pathname and hash (e.g. /privacy, /terms, #privacy, #terms, #drive-vault)
+  // Check URL pathname and hash (e.g. /privacy, /terms, #privacy, #terms, #drive-vault, #sheets)
   useEffect(() => {
     const handleNavigationRoute = () => {
       const hash = window.location.hash.replace('#', '').toLowerCase();
@@ -39,6 +41,8 @@ export default function App() {
         setShareModalOpen(true);
       } else if (hash === 'drive-vault' || hash === 'drive') {
         setDriveVaultOpen(true);
+      } else if (hash === 'sheets' || hash === 'sheets-sync' || hash === 'sheets-hub' || path === '/sheets') {
+        setSheetsHubOpen(true);
       }
     };
 
@@ -80,6 +84,7 @@ export default function App() {
         onOpenShareModal={() => setShareModalOpen(true)}
         onSelectFlow={handleSelectFlow}
         onOpenDriveVault={() => setDriveVaultOpen(true)}
+        onOpenSheetsHub={() => setSheetsHubOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -98,6 +103,7 @@ export default function App() {
           onOpenPrivacyPolicy={handleOpenPrivacy}
           onOpenTerms={() => setLegalModalType('terms')}
           onOpenDriveVault={() => setDriveVaultOpen(true)}
+          onOpenSheetsHub={() => setSheetsHubOpen(true)}
         />
 
         {/* 3-Step Transparent Overview for Sellers */}
@@ -114,6 +120,7 @@ export default function App() {
         onOpenTerms={() => setLegalModalType('terms')}
         onOpenShareModal={() => setShareModalOpen(true)}
         onOpenDriveVault={() => setDriveVaultOpen(true)}
+        onOpenSheetsHub={() => setSheetsHubOpen(true)}
       />
 
       {/* Isolated Full-Page Privacy Policy Overlay (TCR A2P 10DLC Compliant) */}
@@ -167,6 +174,13 @@ export default function App() {
       <GoogleDriveVaultModal
         isOpen={driveVaultOpen}
         onClose={() => setDriveVaultOpen(false)}
+        onOpenSheetsHub={() => setSheetsHubOpen(true)}
+      />
+
+      {/* Google Sheets Lead Pipeline Hub Modal */}
+      <GoogleSheetsHubModal
+        isOpen={sheetsHubOpen}
+        onClose={() => setSheetsHubOpen(false)}
       />
 
       {/* Cookie & Session Security Notice */}

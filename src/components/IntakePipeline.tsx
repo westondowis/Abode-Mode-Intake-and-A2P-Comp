@@ -17,7 +17,8 @@ import {
   AlertCircle,
   FileCheck,
   HardDrive,
-  ShieldCheck
+  ShieldCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { submitLead, LeadPayload } from '../services/leadSubmission';
 import { ENTITY_DETAILS } from '../data/policyData';
@@ -29,6 +30,7 @@ interface IntakePipelineProps {
   onOpenPrivacyPolicy: (sectionId?: string) => void;
   onOpenTerms?: () => void;
   onOpenDriveVault?: () => void;
+  onOpenSheetsHub?: () => void;
 }
 
 export const IntakePipeline: React.FC<IntakePipelineProps> = ({
@@ -38,6 +40,7 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
   onOpenPrivacyPolicy,
   onOpenTerms,
   onOpenDriveVault,
+  onOpenSheetsHub,
 }) => {
   const [activeFlow, setActiveFlow] = useState<'sell' | 'buy'>(controlledFlow || initialFlow);
   const [currentStep, setCurrentStep] = useState(1);
@@ -266,10 +269,20 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
                 <button
                   onClick={onOpenDriveVault}
                   type="button"
-                  className="px-6 py-2.5 bg-[#F2C864] hover:bg-[#e0b853] text-[#00171C] text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-[#F2C864] hover:bg-[#e0b853] text-[#00171C] text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <HardDrive className="w-4 h-4" />
                   <span>Archive to Google Drive Vault</span>
+                </button>
+              )}
+              {onOpenSheetsHub && (
+                <button
+                  onClick={onOpenSheetsHub}
+                  type="button"
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Sync to Google Sheets</span>
                 </button>
               )}
               <button

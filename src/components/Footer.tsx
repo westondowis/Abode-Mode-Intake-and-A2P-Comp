@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive } from 'lucide-react';
+import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive, FileSpreadsheet } from 'lucide-react';
 import { BrandWordmark } from './brand/BrandWordmark';
 import { ENTITY_DETAILS } from '../data/policyData';
 
@@ -8,6 +8,7 @@ interface FooterProps {
   onOpenTerms?: () => void;
   onOpenShareModal: () => void;
   onOpenDriveVault?: () => void;
+  onOpenSheetsHub?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -15,6 +16,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenTerms,
   onOpenShareModal,
   onOpenDriveVault,
+  onOpenSheetsHub,
 }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -138,6 +140,17 @@ export const Footer: React.FC<FooterProps> = ({
                   >
                     <HardDrive className="w-3.5 h-3.5 text-[#F2C864]" />
                     <span>Google Drive Diligence Vault</span>
+                  </button>
+                </li>
+              )}
+              {onOpenSheetsHub && (
+                <li>
+                  <button
+                    onClick={onOpenSheetsHub}
+                    className="hover:text-[#F2C864] transition-colors cursor-pointer flex items-center gap-1.5 text-emerald-300"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Google Sheets Pipeline Hub</span>
                   </button>
                 </li>
               )}

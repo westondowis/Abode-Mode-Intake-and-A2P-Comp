@@ -49,6 +49,7 @@ interface GoogleDriveVaultModalProps {
   isOpen: boolean;
   onClose: () => void;
   activeLead?: Lead | null;
+  onOpenSheetsHub?: () => void;
 }
 
 interface BreadcrumbItem {
@@ -60,6 +61,7 @@ export const GoogleDriveVaultModal: React.FC<GoogleDriveVaultModalProps> = ({
   isOpen,
   onClose,
   activeLead = null,
+  onOpenSheetsHub,
 }) => {
   // Auth state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -390,9 +392,22 @@ export const GoogleDriveVaultModal: React.FC<GoogleDriveVaultModalProps> = ({
                       />
                     </div>
                   )}
+                  {onOpenSheetsHub && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenSheetsHub();
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:text-emerald-200 rounded-lg hover:bg-emerald-950/40 border border-emerald-700/60 transition-colors cursor-pointer"
+                      title="Switch to Google Sheets Pipeline Hub"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Sheets Hub</span>
+                    </button>
+                  )}
                   <button
                     onClick={handleSignOut}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-rose-300 rounded-lg hover:bg-rose-950/30 border border-slate-700/60 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-rose-300 rounded-lg hover:bg-rose-950/30 border border-slate-700/60 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     Disconnect
