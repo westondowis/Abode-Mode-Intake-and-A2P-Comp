@@ -142,28 +142,40 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
 
     setSubmitting(true);
 
+    const isSell = activeFlow === 'sell';
+    const anyConsent = consentMarketing || consentTransactional;
+
     const payload: LeadPayload = {
       flow: activeFlow,
-      fullName,
-      phone,
-      email,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      propertyAddress: isSell ? sellParcelOrAddress.trim() : (buyTargetCounties ? `${buyTargetCounties}, ${buyTargetStates}` : buyTargetStates),
+      parcelOrAddress: isSell ? sellParcelOrAddress.trim() : `Target Use: ${buyIntendedUse}`,
+      parcelNumber: isSell ? sellParcelOrAddress.trim() : '',
+      state: isSell ? sellState : buyTargetStates,
+      county: isSell ? sellCounty.trim() : buyTargetCounties.trim(),
+      acreage: isSell ? sellAcreage.trim() : buyAcreageRange,
+      askingPrice: isSell ? sellTargetPrice.trim() : buyBudgetRange,
+      motivation: isSell ? (sellNotes.trim() || 'Direct Land Sale Cash Offer Intake') : buyIntendedUse,
+      timeline: isSell ? sellTimeline : buyPaymentStrategy,
+      occupancyCondition: isSell
+        ? `Ownership: ${sellOwnershipStatus} | Taxes: ${sellTaxesOrLiens} | Road: ${sellAccessType} | Utilities: ${sellUtilities} | Topo: ${sellTopography}`
+        : `Strategy: ${buyPaymentStrategy}`,
+      notes: isSell
+        ? `Access: ${sellAccessType} | Utilities: ${sellUtilities} | Topo: ${sellTopography} | Ownership: ${sellOwnershipStatus} | Taxes: ${sellTaxesOrLiens} | Price Target: ${sellTargetPrice} | Timeline: ${sellTimeline} | Additional: ${sellNotes}`
+        : `Use: ${buyIntendedUse} | Terms: ${buyPaymentStrategy} | Budget: ${buyBudgetRange} | Criteria: ${buyNotes}`,
       smsTransactionalConsent: consentTransactional,
       smsMarketingConsent: consentMarketing,
       smsConsentTransactional: consentTransactional,
       smsConsentMarketing: consentMarketing,
-      smsConsent: consentMarketing || consentTransactional,
-      consentTimestamp: consentMarketing || consentTransactional ? new Date().toISOString() : null,
+      smsConsent: anyConsent,
+      consentTimestamp: anyConsent ? new Date().toISOString() : null,
       disclosureVersion: 'CTIA_2026_V1',
       nonSharingCovenantAccepted: true,
-      state: activeFlow === 'sell' ? sellState : buyTargetStates,
-      county: activeFlow === 'sell' ? sellCounty : buyTargetCounties,
-      parcelOrAddress:
-        activeFlow === 'sell' ? sellParcelOrAddress : `Looking for: ${buyIntendedUse}`,
-      acreage: activeFlow === 'sell' ? sellAcreage : buyAcreageRange,
-      notes:
-        activeFlow === 'sell'
-          ? `Access: ${sellAccessType} | Utilities: ${sellUtilities} | Topo: ${sellTopography} | Ownership: ${sellOwnershipStatus} | Taxes: ${sellTaxesOrLiens} | Price Target: ${sellTargetPrice} | Timeline: ${sellTimeline} | Additional: ${sellNotes}`
-          : `Use: ${buyIntendedUse} | Terms: ${buyPaymentStrategy} | Budget: ${buyBudgetRange} | Criteria: ${buyNotes}`,
+      exactConsentDisclosureText: anyConsent
+        ? 'I agree to receive transactional and informational text messages from Abode Mode at the phone number provided regarding my land property inquiry, valuation assessments, cash offer status, and closing coordination. Message and data rates may apply. Reply STOP to cancel at any time, HELP for assistance.'
+        : '',
     };
 
     try {

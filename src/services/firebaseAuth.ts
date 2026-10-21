@@ -32,6 +32,11 @@ export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/contacts',
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/meetings.space.created',
+  'https://www.googleapis.com/auth/meetings.space.readonly',
 ];
 
 const provider = new GoogleAuthProvider();

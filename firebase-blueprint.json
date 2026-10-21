@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "Incoming land acquisition or buyer criteria lead record with A2P 10DLC compliance audit metadata",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the lead record"
+        },
+        "flow": {
+          "type": "string",
+          "enum": ["sell", "buy"],
+          "description": "Whether this is a land sale cash offer inquiry or buyer acquisition criteria"
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Full name of the seller or prospective land buyer"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Contact phone number"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Contact email address"
+        },
+        "propertyAddress": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Street address or parcel location description"
+        },
+        "parcelNumber": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Assessor Parcel Number (APN) if available"
+        },
+        "county": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "County of the property or target acquisition county"
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "State code or name"
+        },
+        "acreage": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Size in acres"
+        },
+        "askingPrice": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Seller asking price or buyer target budget"
+        },
+        "motivation": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Reason for selling or intended land use"
+        },
+        "timeline": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Desired closing or purchasing timeline"
+        },
+        "occupancyCondition": {
+          "type": "string",
+          "maxLength": 250,
+          "description": "Ownership status, road access, and utilities condition"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Additional notes, terms, and parcel features"
+        },
+        "smsTransactionalConsent": {
+          "type": "boolean",
+          "description": "Explicit opt-in to informational and transactional SMS updates"
+        },
+        "smsMarketingConsent": {
+          "type": "boolean",
+          "description": "Explicit opt-in to marketing and promotional SMS updates"
+        },
+        "smsConsent": {
+          "type": "boolean",
+          "description": "Combined opt-in state for backward compatibility"
+        },
+        "consentTimestamp": {
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp of SMS consent agreement"
+        },
+        "consentIpHint": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Client IP address or network hint for compliance audit"
+        },
+        "userAgent": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Client browser user agent string"
+        },
+        "disclosureVersion": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Version identifier of CTIA / A2P disclosure language"
+        },
+        "nonSharingCovenantAccepted": {
+          "type": "boolean",
+          "description": "Affirmation that statutory carrier non-sharing covenant was displayed"
+        },
+        "exactConsentDisclosureText": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Verbatim disclosure text agreed to by lead"
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "ISO 8601 timestamp when lead was recorded"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "reviewing", "contacted", "offer_sent", "under_contract", "closed", "archived"],
+          "description": "Workflow pipeline status"
+        }
+      },
+      "required": ["id", "flow", "fullName", "submittedAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized acquisition team member with administrative review access",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Google email address of admin"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "superadmin"],
+          "description": "Administrative permission tier"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Incoming land acquisition or buyer criteria lead record"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized acquisition managers"
+    }
+  }
+}

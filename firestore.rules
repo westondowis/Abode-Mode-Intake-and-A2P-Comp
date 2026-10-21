@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'wdowis@abodebuys.com' ||
+          request.auth.token.email == 'escalade25@gmail.com' ||
+          request.auth.token.email.matches('.*@abodebuys\\.com$') ||
+          request.auth.token.email.matches('.*@abode-mode\\.com$')
+        ))
+      );
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['id', 'flow', 'fullName', 'submittedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             (data.flow == 'sell' || data.flow == 'buy') &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 150 &&
+             data.submittedAt is string && data.submittedAt.size() <= 50 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 40)) &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+             (!('propertyAddress' in data) || (data.propertyAddress is string && data.propertyAddress.size() <= 300)) &&
+             (!('parcelNumber' in data) || (data.parcelNumber is string && data.parcelNumber.size() <= 100)) &&
+             (!('county' in data) || (data.county is string && data.county.size() <= 100)) &&
+             (!('state' in data) || (data.state is string && data.state.size() <= 50)) &&
+             (!('acreage' in data) || (data.acreage is string && data.acreage.size() <= 50)) &&
+             (!('askingPrice' in data) || (data.askingPrice is string && data.askingPrice.size() <= 100)) &&
+             (!('motivation' in data) || (data.motivation is string && data.motivation.size() <= 500)) &&
+             (!('timeline' in data) || (data.timeline is string && data.timeline.size() <= 150)) &&
+             (!('occupancyCondition' in data) || (data.occupancyCondition is string && data.occupancyCondition.size() <= 250)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('smsTransactionalConsent' in data) || (data.smsTransactionalConsent is bool)) &&
+             (!('smsMarketingConsent' in data) || (data.smsMarketingConsent is bool)) &&
+             (!('smsConsent' in data) || (data.smsConsent is bool)) &&
+             (!('nonSharingCovenantAccepted' in data) || (data.nonSharingCovenantAccepted is bool));
+    }
+
+    // Leads Collection: Public creation for intake inquiries; Admin-only read and modification
+    match /leads/{leadId} {
+      allow create: if isValidId(leadId) && isValidLead(request.resource.data);
+      allow get, list, update, delete: if isAdmin();
+    }
+
+    // Admins Collection: Controlled access for acquisition managers
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

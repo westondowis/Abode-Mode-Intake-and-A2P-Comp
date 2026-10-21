@@ -59,30 +59,52 @@ export const LandInquiryForm: React.FC<LandInquiryFormProps> = ({
     e.preventDefault();
     setFormError(null);
 
-    if (!formData.fullName.trim() || !formData.phone.trim()) {
-      setFormError('Please provide your name and phone number so our acquisitions desk can evaluate your property.');
+    const trimmedName = formData.fullName.trim();
+    const trimmedPhone = formData.phone.trim();
+    const trimmedAddress = formData.propertyAddress.trim();
+
+    if (!trimmedName) {
+      setFormError('Please enter your full name.');
+      return;
+    }
+
+    if (!trimmedAddress) {
+      setFormError('Please provide the property address or APN parcel number.');
+      return;
+    }
+
+    const phoneDigits = trimmedPhone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+      setFormError('Please provide a valid 10-digit mobile phone number (e.g. 720-649-0734).');
       return;
     }
 
     setSubmitting(true);
 
     try {
+      const anyConsent = formData.smsTransactionalConsent || formData.smsMarketingConsent;
       const result = await submitLead({
         flow: 'sell',
-        fullName: formData.fullName,
-        phone: formData.phone,
+        fullName: trimmedName,
+        phone: trimmedPhone,
         email: '',
-        propertyAddress: formData.propertyAddress,
-        parcelOrAddress: formData.propertyAddress,
+        propertyAddress: trimmedAddress,
+        parcelOrAddress: trimmedAddress,
+        parcelNumber: trimmedAddress.toLowerCase().includes('apn') ? trimmedAddress : '',
+        askingPrice: 'Fast Cash Offer Requested',
+        motivation: 'Express Cash Offer Web Intake',
+        timeline: 'As soon as title clears',
+        occupancyCondition: 'Standard Land Intake',
+        notes: `Submitted via Express Intake Form for parcel: ${trimmedAddress}`,
         smsTransactionalConsent: formData.smsTransactionalConsent,
         smsMarketingConsent: formData.smsMarketingConsent,
-        smsConsent: formData.smsTransactionalConsent || formData.smsMarketingConsent,
-        consentTimestamp:
-          formData.smsTransactionalConsent || formData.smsMarketingConsent
-            ? new Date().toISOString()
-            : null,
+        smsConsent: anyConsent,
+        consentTimestamp: anyConsent ? new Date().toISOString() : null,
         disclosureVersion: 'CTIA_2026_V1',
         nonSharingCovenantAccepted: true,
+        exactConsentDisclosureText: anyConsent
+          ? 'I agree to receive transactional and informational text messages from Abode Mode at the phone number provided regarding my land property inquiry, valuation assessments, cash offer status, and closing coordination. Message and data rates may apply. Reply STOP to cancel at any time, HELP for assistance.'
+          : '',
       });
 
       setSubmittedLeadId(result.leadId);
