@@ -8,9 +8,15 @@
 }
 
 body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.dark body {
   background-color: #061116;
   color: #f1f5f9;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 .serif-title {

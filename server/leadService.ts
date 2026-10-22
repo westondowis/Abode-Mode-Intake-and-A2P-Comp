@@ -123,7 +123,7 @@ export async function processIncomingLead(leadData: LeadSubmissionData): Promise
  * 2. Inbound Webhook (Zapier / Make / CRM / Inbound SMS Gateway)
  */
 export async function dispatchLeadNotifications(lead: LeadSubmissionData): Promise<void> {
-  const targetEmail = process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abodebuys.com';
+  const targetEmail = process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abode-mode.com';
   const webhookUrl =
     process.env.LEAD_WEBHOOK_URL ||
     process.env.ZAPIER_WEBHOOK_URL ||

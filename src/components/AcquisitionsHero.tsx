@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrandWordmark } from './brand/BrandWordmark';
 import { ENTITY_DETAILS } from '../data/policyData';
+import { getAcquisitionMailtoHref } from '../utils/contactEmail';
 import { ShieldCheck, ArrowDown, PhoneCall, Sparkles, Building, Landmark, CheckCircle2 } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 
@@ -142,8 +143,9 @@ export const AcquisitionsHero: React.FC<AcquisitionsHeroProps> = ({
                     <span>Acquisitions Email:</span>
                   </span>
                   <a
-                    href={`mailto:${ENTITY_DETAILS.contactEmail}`}
+                    href={getAcquisitionMailtoHref()}
                     className="font-mono text-[#88BBD8] hover:text-white truncate max-w-[190px]"
+                    title="Compose pre-filled inquiry email to wdowis@abode-mode.com"
                   >
                     {ENTITY_DETAILS.contactEmail}
                   </a>

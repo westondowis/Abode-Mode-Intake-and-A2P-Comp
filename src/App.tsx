@@ -12,6 +12,7 @@ import { CookieBanner } from './components/CookieBanner';
 import { Footer } from './components/Footer';
 import { GoogleDriveVaultModal } from './components/GoogleDriveVaultModal';
 import { GoogleSheetsHubModal } from './components/GoogleSheetsHubModal';
+import { ThemeProvider } from './context/ThemeContext';
 import { X } from 'lucide-react';
 
 export default function App() {
@@ -76,9 +77,10 @@ export default function App() {
   };
 
   return (
-    <div id="top" className="min-h-screen bg-[#061116] text-slate-100 flex flex-col font-sans selection:bg-[#F2C864] selection:text-[#00171C]">
-      
-      {/* Polished Commercial Header */}
+    <ThemeProvider>
+      <div id="top" className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#061116] dark:text-slate-100 flex flex-col font-sans selection:bg-[#F2C864] selection:text-[#00171C] transition-colors duration-200">
+        
+        {/* Polished Commercial Header */}
       <Header
         onOpenPrivacyPolicy={handleOpenPrivacy}
         onOpenShareModal={() => setShareModalOpen(true)}
@@ -186,6 +188,7 @@ export default function App() {
       {/* Cookie & Session Security Notice */}
       <CookieBanner onOpenPrivacyPolicy={() => handleOpenPrivacy()} />
 
-    </div>
+      </div>
+    </ThemeProvider>
   );
 }

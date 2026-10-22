@@ -41,7 +41,7 @@ app.post('/api/leads/submit', async (req, res) => {
         ? data.id
         : `ABODE-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const flow = data.flow === 'buy' ? 'buy' : 'sell';
+    const flow: 'buy' | 'sell' = data.flow === 'buy' ? 'buy' : 'sell';
     const nowIso = new Date().toISOString();
 
     const normalizedLead = {

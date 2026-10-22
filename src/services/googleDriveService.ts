@@ -334,7 +334,7 @@ Preferred Contact:        ${s.preferredContactMethod}
 Closing Agent: First American Title / Fidelity National Title Escrow
 Closing Timeline: 7 - 14 Business Days
 Liabilities: Buyer covers 100% of customary closing costs, back taxes subject to title search.
-Contact Desk: ABODE-MODE LLC | 720-649-0734 | kbowis@Abode-Mode.com
+Contact Desk: ABODE-MODE LLC | 720-649-0734 | wdowis@abode-mode.com
 ================================================================================
 `;
   } else {
@@ -368,7 +368,7 @@ Preferred Contact:        ${b.preferredContactMethod}
 
 3. DISPOSITION DESK COORDINATION
 --------------------------------------------------------------------------------
-ABODE-MODE LLC | 720-649-0734 | kbowis@Abode-Mode.com
+ABODE-MODE LLC | 720-649-0734 | wdowis@abode-mode.com
 Inventory: Nationwide Institutional Off-Market Land
 ================================================================================
 `;

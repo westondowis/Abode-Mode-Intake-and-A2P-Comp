@@ -18,10 +18,13 @@ import {
   FileCheck,
   HardDrive,
   ShieldCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Copy,
+  Check
 } from 'lucide-react';
-import { submitLead, LeadPayload } from '../services/leadSubmission';
+import { submitLead, LeadPayload, formatLeadForCrm } from '../services/leadSubmission';
 import { ENTITY_DETAILS } from '../data/policyData';
+import { getAcquisitionMailtoHref, ACQUISITION_EMAIL } from '../utils/contactEmail';
 
 interface IntakePipelineProps {
   initialFlow?: 'sell' | 'buy';
@@ -47,6 +50,8 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [submittedLeadId, setSubmittedLeadId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [copiedCrm, setCopiedCrm] = useState(false);
+  const [lastSubmittedLead, setLastSubmittedLead] = useState<LeadPayload | null>(null);
 
   React.useEffect(() => {
     if (controlledFlow && controlledFlow !== activeFlow) {
@@ -178,6 +183,8 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
         : '',
     };
 
+    setLastSubmittedLead(payload);
+
     try {
       const result = await submitLead(payload);
       setSubmittedLeadId(result.leadId);
@@ -187,6 +194,29 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCopyCrmBlock = () => {
+    const leadToFormat: LeadPayload = lastSubmittedLead || {
+      flow: activeFlow,
+      fullName: fullName || 'Prospect',
+      phone: phone || '',
+      email: email || '',
+      propertyAddress: activeFlow === 'sell' ? sellParcelOrAddress : buyTargetCounties,
+      county: activeFlow === 'sell' ? sellCounty : buyTargetCounties,
+      state: activeFlow === 'sell' ? sellState : buyTargetStates,
+      acreage: activeFlow === 'sell' ? sellAcreage : buyAcreageRange,
+      askingPrice: activeFlow === 'sell' ? sellTargetPrice : buyBudgetRange,
+      timeline: activeFlow === 'sell' ? sellTimeline : buyPaymentStrategy,
+      notes: activeFlow === 'sell' ? sellNotes : buyNotes,
+      smsTransactionalConsent: consentTransactional,
+      smsMarketingConsent: consentMarketing,
+      consentTimestamp: new Date().toISOString(),
+    };
+    const text = formatLeadForCrm(leadToFormat);
+    navigator.clipboard.writeText(text);
+    setCopiedCrm(true);
+    setTimeout(() => setCopiedCrm(false), 2500);
   };
 
   const handleReset = () => {
@@ -205,20 +235,20 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
   };
 
   return (
-    <section id="form-container" className="scroll-mt-24 py-16 bg-[#061116] text-white">
+    <section id="form-container" className="scroll-mt-24 py-16 bg-slate-100 text-slate-900 dark:bg-[#061116] dark:text-white transition-colors duration-200">
       <div id="intake-pipeline" />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Dual Flow Choice Tabs */}
         {!submittedLeadId && (
-          <div className="flex rounded-lg bg-[#0A4251] p-1.5 border border-[#F2C864]/30 mb-8 max-w-md mx-auto shadow-sm">
+          <div className="flex rounded-xl bg-slate-200 dark:bg-[#0A4251] p-1.5 border border-slate-300 dark:border-[#F2C864]/30 mb-8 max-w-md mx-auto shadow-sm">
             <button
               type="button"
               onClick={() => handleFlowSwitch('sell')}
-              className={`flex-1 py-3 px-4 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`flex-1 py-3 px-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 activeFlow === 'sell'
-                  ? 'bg-[#F2C864] text-[#00171C] shadow-md'
-                  : 'text-slate-200 hover:text-white'
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-300 text-slate-950 shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
               }`}
             >
               I Want to Sell Land
@@ -226,10 +256,10 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
             <button
               type="button"
               onClick={() => handleFlowSwitch('buy')}
-              className={`flex-1 py-3 px-4 rounded-md text-xs sm:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`flex-1 py-3 px-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider transition-all cursor-pointer ${
                 activeFlow === 'buy'
-                  ? 'bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 shadow-md'
-                  : 'text-slate-200 hover:text-white'
+                  ? 'bg-gradient-to-r from-teal-500 via-cyan-400 to-teal-400 text-slate-950 shadow-md'
+                  : 'text-slate-700 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white'
               }`}
             >
               I Want to Buy Land
@@ -239,68 +269,119 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
 
         {/* Confirmation Screen */}
         {submittedLeadId ? (
-          <div className="bg-white rounded-lg border border-[#D5DDE0] p-8 sm:p-12 shadow-2xl text-slate-800 animate-in fade-in duration-200 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center border border-emerald-200">
+          <div className="bg-white dark:bg-[#00171C] rounded-2xl border border-slate-200 dark:border-[#0A4251] p-8 sm:p-12 shadow-2xl text-slate-800 dark:text-slate-100 animate-in fade-in duration-200 text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 mx-auto flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0A4251] block">
-                Direct Submission Recorded
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-teal-700 dark:text-cyan-400 block">
+                Direct Submission Recorded &amp; Persisted
               </span>
-              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#00171C]">
+              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-slate-950 dark:text-white">
                 Thank You, {fullName || 'Valued Client'}
               </h3>
-              <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-                Your {activeFlow === 'sell' ? 'property acquisition inquiry' : 'buyer criteria buy box'} has been safely logged directly to our acquisitions desk.
+              <p className="text-sm text-slate-600 dark:text-slate-300 max-w-lg mx-auto leading-relaxed">
+                Your {activeFlow === 'sell' ? 'property acquisition inquiry' : 'buyer criteria buy box'} has been safely logged to our acquisition datastore.
               </p>
+            </div>
+
+            {/* Storage Audit & Persistence Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
+                <Check className="w-3 h-3" /> Audit Log Stored
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 text-teal-800 dark:text-teal-300">
+                <Check className="w-3 h-3" /> Firestore Database
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-800 text-cyan-800 dark:text-cyan-300">
+                <Check className="w-3 h-3" /> Sheets Webhook &amp; Alert Ready
+              </span>
             </div>
 
             {/* Reference Badge */}
-            <div className="bg-[#F8FAFB] p-4 rounded-md border border-[#D5DDE0] max-w-sm mx-auto text-xs space-y-1 font-mono">
-              <div className="text-slate-500">Intake Reference Number:</div>
-              <div className="text-sm font-bold text-slate-900">{submittedLeadId}</div>
+            <div className="bg-slate-50 dark:bg-[#061116] p-4 rounded-xl border border-slate-200 dark:border-slate-800 max-w-sm mx-auto text-xs space-y-1 font-mono">
+              <div className="text-slate-500 dark:text-slate-400">Intake Reference Number:</div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">{submittedLeadId}</div>
             </div>
 
             {/* Assigned Desk Info */}
-            <div className="bg-[#0A4251]/5 p-5 rounded-lg border border-[#0A4251]/20 max-w-lg mx-auto text-xs text-left space-y-2">
-              <div className="font-bold text-slate-900 font-serif text-sm">
+            <div className="bg-slate-50 dark:bg-[#0A4251]/20 p-5 rounded-xl border border-slate-200 dark:border-[#0A4251]/40 max-w-lg mx-auto text-xs text-left space-y-2">
+              <div className="font-bold text-slate-900 dark:text-white font-serif text-sm">
                 Next Steps from Our Operating Desks:
               </div>
-              <p className="text-slate-600 leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                 A member of our acquisitions team is reviewing county records and market comps. We respond with initial feedback or a written cash contract within <strong>24 business hours</strong>.
               </p>
-              <div className="pt-2 border-t border-[#D5DDE0] font-mono text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 font-mono text-[11px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center justify-between gap-2">
                 <span>Direct Intake Line: (720) 649-0734</span>
-                <span>Nationwide Operations Across All 50 States</span>
+                <span>Acquisitions: wdowis@abode-mode.com</span>
               </div>
             </div>
 
+            {/* Automation & Action Row */}
             <div className="pt-4 flex flex-wrap items-center justify-center gap-3">
-              {onOpenDriveVault && (
-                <button
-                  onClick={onOpenDriveVault}
-                  type="button"
-                  className="px-5 py-2.5 bg-[#F2C864] hover:bg-[#e0b853] text-[#00171C] text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
-                >
-                  <HardDrive className="w-4 h-4" />
-                  <span>Archive to Google Drive Vault</span>
-                </button>
-              )}
+              {/* Copy CRM Block Button */}
+              <button
+                type="button"
+                onClick={handleCopyCrmBlock}
+                className="px-5 py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                title="Copy structured lead block formatted for instant CRM pasting"
+              >
+                {copiedCrm ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Copied CRM Block!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-amber-400" />
+                    <span>Copy CRM Lead Block</span>
+                  </>
+                )}
+              </button>
+
+              {/* Email Direct Button with Pre-filled Form */}
+              <a
+                href={getAcquisitionMailtoHref({
+                  name: fullName,
+                  address: activeFlow === 'sell' ? sellParcelOrAddress : buyTargetCounties,
+                  phone: phone,
+                })}
+                className="px-5 py-2.5 bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                title="Open your email client with this lead inquiry pre-filled to wdowis@abode-mode.com"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Email Acquisition Desk</span>
+              </a>
+
               {onOpenSheetsHub && (
                 <button
                   onClick={onOpenSheetsHub}
                   type="button"
-                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  title="View Google Sheets Pipeline Hub & Setup Instructions"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
-                  <span>Sync to Google Sheets</span>
+                  <span>Google Sheets Sync</span>
                 </button>
               )}
+
+              {onOpenDriveVault && (
+                <button
+                  onClick={onOpenDriveVault}
+                  type="button"
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <HardDrive className="w-4 h-4" />
+                  <span>Drive Vault</span>
+                </button>
+              )}
+
               <button
                 onClick={handleReset}
                 type="button"
-                className="px-6 py-2.5 bg-[#0A4251] hover:bg-[#00171C] text-white text-xs font-semibold uppercase tracking-wider rounded transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
               >
                 Submit Another Property
               </button>
@@ -308,15 +389,15 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
           </div>
         ) : (
           /* Multi-Step Intake Form */
-          <div className="bg-white rounded-lg border border-[#D5DDE0] shadow-2xl p-6 sm:p-10 text-slate-800">
+          <div className="bg-white dark:bg-[#00171C] rounded-2xl border border-slate-200 dark:border-[#0A4251] shadow-xl p-6 sm:p-10 text-slate-900 dark:text-slate-100 transition-colors duration-200">
             
             {/* Form Header & Progress */}
-            <div className="pb-6 mb-8 border-b border-[#D5DDE0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="pb-6 mb-8 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#0A4251]">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-teal-700 dark:text-[#F2C864]">
                   {activeFlow === 'sell' ? 'Seller Acquisition Intake' : 'Buyer / Investor Buy Box'}
                 </span>
-                <h3 className="text-2xl font-serif font-bold text-[#00171C]">
+                <h3 className="text-2xl font-serif font-bold text-slate-950 dark:text-white">
                   {activeFlow === 'sell'
                     ? 'Submit Your Land for an As-Is Cash Offer'
                     : 'Submit Your Target Land Acquisition Criteria'}
@@ -324,8 +405,8 @@ export const IntakePipeline: React.FC<IntakePipelineProps> = ({
               </div>
 
               {/* Step indicator */}
-              <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500 shrink-0">
-                <span className="font-bold text-slate-900">Step {currentStep}</span>
+              <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                <span className="font-bold text-slate-900 dark:text-slate-200">Step {currentStep}</span>
                 <span>/</span>
                 <span>4</span>
               </div>

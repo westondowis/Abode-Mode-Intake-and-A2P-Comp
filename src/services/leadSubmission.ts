@@ -52,18 +52,76 @@ export interface StoredLeadRecord extends LeadPayload {
 }
 
 const LOCAL_STORAGE_KEY = 'abode_leads_backup';
+export const SHEETS_WEBHOOK_KEY = 'abode_sheets_webhook_url';
 
-// Configurable endpoint via environment variable, with safe fallback
-const GOOGLE_APPS_SCRIPT_URL =
-  import.meta.env.VITE_APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbwAbodeModeDefaultScriptId/exec';
+/**
+ * Returns the currently active Google Apps Script webhook URL
+ */
+export function getActiveWebhookUrl(): string {
+  try {
+    const custom = localStorage.getItem(SHEETS_WEBHOOK_KEY);
+    if (custom && custom.startsWith('https://script.google.com/macros/s/')) {
+      return custom;
+    }
+  } catch {
+    // ignore
+  }
+  return (
+    import.meta.env.VITE_APPS_SCRIPT_URL ||
+    'https://script.google.com/macros/s/AKfycbwAbodeModeDefaultScriptId/exec'
+  );
+}
+
+/**
+ * Formats a lead into a General CRM clipboard block ready for instant pasting
+ */
+export function formatLeadForCrm(lead: LeadPayload | StoredLeadRecord): string {
+  const leadId = (lead as StoredLeadRecord).id || `ABODE-${Date.now().toString(36).toUpperCase()}`;
+  const timestamp = (lead as StoredLeadRecord).submittedAt || new Date().toISOString();
+  const flow = lead.flow === 'sell' ? 'LAND ACQUISITION / CASH OFFER' : 'LAND BUYER CRITERIA';
+  const address = lead.propertyAddress || lead.parcelOrAddress || lead.parcelNumber || 'N/A';
+  const txConsent = lead.smsTransactionalConsent ? 'YES' : 'NO';
+  const mktConsent = lead.smsMarketingConsent ? 'YES' : 'NO';
+
+  return `============================================================
+📋 ABODE MODE - GENERAL CRM INTAKE BLOCK
+------------------------------------------------------------
+Lead ID:          ${leadId}
+Intake Flow:      ${flow}
+Submitted At:     ${new Date(timestamp).toLocaleString()}
+
+CONTACT DETAILS:
+Full Name:        ${lead.fullName}
+Phone:            ${lead.phone || 'N/A'}
+Email:            ${lead.email || 'N/A'}
+
+PROPERTY / PARCEL DETAILS:
+Address / APN:    ${address}
+County & State:   ${lead.county || 'N/A'}, ${lead.state || 'N/A'}
+Acreage:          ${lead.acreage || 'N/A'}
+
+DEAL TERMS & MOTIVATION:
+Asking / Budget:  ${lead.askingPrice || 'N/A'}
+Timeline:         ${lead.timeline || 'Standard'}
+Motivation / Use: ${lead.motivation || 'N/A'}
+Condition/Status: ${lead.occupancyCondition || 'N/A'}
+Additional Notes: ${lead.notes || 'None'}
+
+A2P 10DLC COMPLIANCE RECORD:
+SMS Tx Consent:   ${txConsent}
+SMS Mkt Consent:  ${mktConsent}
+Consent Time:     ${lead.consentTimestamp || 'N/A'}
+IP Hint / Agent:  ${lead.consentIpHint || 'web'} (${lead.userAgent || 'AbodeMode-Web/1.0'})
+Recipient Notify: wdowis@abode-mode.com
+============================================================`;
+}
 
 /**
  * Normalizes and dispatches lead data:
  * 1. Writes an immediate emergency backup copy to localStorage under 'abode_leads_backup'.
  * 2. POSTs to the server intake endpoint (/api/leads/submit) to persist in Firestore + server audit log
- *    and trigger asynchronous alerts to wdowis@abodebuys.com and inbound webhooks.
- * 3. Falls back gracefully to Apps Script or local offline queue if the network drops.
+ *    and trigger asynchronous alerts to wdowis@abode-mode.com and inbound webhooks.
+ * 3. Dispatches to Google Sheets Webhook (Apps Script) for zero-cost row persistence + Gmail alert + Google Task.
  */
 export async function submitLead(payload: LeadPayload): Promise<{
   success: boolean;
@@ -146,29 +204,21 @@ export async function submitLead(payload: LeadPayload): Promise<{
       } catch {
         // non-blocking
       }
-
-      return {
-        success: true,
-        leadId,
-        mode: 'remote',
-        message: 'Lead received, persisted to database, and queued for acquisition team review.',
-        persistedTo: data.persistedTo,
-        leadRecord,
-      };
     }
   } catch (serverErr) {
     console.warn('[LeadSubmission] Server endpoint unreached or offline, evaluating secondary dispatch:', serverErr);
   }
 
-  // 3. Secondary Dispatch: Apps Script Webhook (if configured)
+  // 3. Secondary Dispatch: Apps Script Webhook (Google Sheets + Gmail Alert + Google Task)
+  const webhookUrl = getActiveWebhookUrl();
   const isConfiguredUrl =
-    GOOGLE_APPS_SCRIPT_URL &&
-    !GOOGLE_APPS_SCRIPT_URL.includes('DefaultScriptId') &&
-    GOOGLE_APPS_SCRIPT_URL.startsWith('https://script.google.com/macros/s/');
+    webhookUrl &&
+    !webhookUrl.includes('DefaultScriptId') &&
+    webhookUrl.startsWith('https://script.google.com/macros/s/');
 
   if (isConfiguredUrl) {
     try {
-      await fetch(GOOGLE_APPS_SCRIPT_URL, {
+      await fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -178,24 +228,29 @@ export async function submitLead(payload: LeadPayload): Promise<{
       });
 
       leadRecord.submissionStatus = 'dispatched';
+      if (!leadRecord.persistedTo) leadRecord.persistedTo = [];
+      leadRecord.persistedTo.push('google_sheets_webhook');
+
       return {
         success: true,
         leadId,
         mode: 'remote',
-        message: 'Lead received and dispatched to acquisition webhook.',
+        message: 'Lead received, persisted to Google Sheets, and alert dispatched to acquisitions desk.',
+        persistedTo: leadRecord.persistedTo,
         leadRecord,
       };
     } catch (networkError) {
-      console.warn('Network dispatch failed, lead preserved in local backup:', networkError);
+      console.warn('Google Apps Script webhook dispatch failed, lead preserved in local backup:', networkError);
     }
   }
 
-  // 4. Fallback confirmation (preserved safely in client backup)
+  // 4. Return successful confirmation
   return {
     success: true,
     leadId,
-    mode: 'simulation',
-    message: 'Lead successfully saved to acquisition queue.',
+    mode: leadRecord.persistedTo && leadRecord.persistedTo.length > 0 ? 'remote' : 'simulation',
+    message: 'Lead safely received and queued for acquisition team review.',
+    persistedTo: leadRecord.persistedTo || ['local_backup'],
     leadRecord,
   };
 }

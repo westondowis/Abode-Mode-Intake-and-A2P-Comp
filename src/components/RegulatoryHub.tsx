@@ -3,6 +3,7 @@ import {
   POLICY_SECTIONS, 
   ENTITY_DETAILS 
 } from '../data/policyData';
+import { getAcquisitionMailtoHref } from '../utils/contactEmail';
 import { StrictSmsCallout } from './StrictSmsCallout';
 import { 
   Search, 
@@ -540,8 +541,9 @@ export const RegulatoryHub: React.FC<RegulatoryHubProps> = ({
                                   <span className="font-mono font-semibold uppercase">Electronic Inquiries</span>
                                 </div>
                                 <a
-                                  href={`mailto:${ENTITY_DETAILS.contactEmail}`}
+                                  href={getAcquisitionMailtoHref()}
                                   className="text-sm font-bold text-white hover:text-[#F2C864] block font-mono truncate"
+                                  title="Compose pre-filled inquiry email to wdowis@abode-mode.com"
                                 >
                                   {ENTITY_DETAILS.contactEmail}
                                 </a>

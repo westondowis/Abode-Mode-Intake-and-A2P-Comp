@@ -19,7 +19,7 @@ export const ENTITY_DETAILS: EntityDetails = {
   primaryPhoneRaw: '7206490734',
   secondaryPhone: '(720) 649-0734',
   secondaryPhoneRaw: '7206490734',
-  contactEmail: 'kbowis@Abode-Mode.com',
+  contactEmail: 'wdowis@abode-mode.com',
   effectiveDate: 'October 15, 2026',
   headquarters: 'Nationwide Land Acquisitions & Sales Desk',
   trademarkNotice: 'Abode Mode and the Broker are marks of ABODE-MODE LLC. All rights reserved.',
@@ -66,7 +66,7 @@ export const COMPLIANCE_CHECKLIST: ComplianceCheckItem[] = [
     id: 'req-4',
     requirement: 'HELP Protocol Disclosure',
     standard: 'CTIA Section 5.2',
-    carrierNotice: 'Customer support intake line (720) 649-0734 and email kbowis@Abode-Mode.com returned immediately upon keyword HELP inquiry.',
+    carrierNotice: 'Customer support intake line (720) 649-0734 and email wdowis@abode-mode.com returned immediately upon keyword HELP inquiry.',
     sectionTarget: 'consumer-rights-opt-out',
     status: 'Verified',
   },
@@ -235,13 +235,13 @@ export const POLICY_SECTIONS: PolicySection[] = [
         subtitle: '4.2 HELP & Direct Customer Support Protocol',
         paragraphs: [
           'For assistance, information on active property offers, or clarification on message origin, reply HELP to any SMS received from Abode Mode.',
-          'You may also contact our direct intake line via telephone at (720) 649-0734 or email kbowis@Abode-Mode.com. Inquiries are addressed within 24 business hours.',
+          'You may also contact our direct intake line via telephone at (720) 649-0734 or email wdowis@abode-mode.com. Inquiries are addressed within 24 business hours.',
         ],
       },
       {
         subtitle: '4.3 Right to Access, Correct, or Delete Records',
         paragraphs: [
-          'Property owners retain the right to inspect any personal contact records held by Abode Mode, request corrections to erroneous property data, or request permanent deletion of contact profiles for uncontracted properties. Inquiries should be directed to kbowis@Abode-Mode.com.',
+          'Property owners retain the right to inspect any personal contact records held by Abode Mode, request corrections to erroneous property data, or request permanent deletion of contact profiles for uncontracted properties. Inquiries should be directed to wdowis@abode-mode.com.',
         ],
       },
     ],
@@ -283,7 +283,7 @@ export const POLICY_SECTIONS: PolicySection[] = [
           'ABODE-MODE LLC (d/b/a Abode Mode)',
           'Director of Acquisitions: W. Dowis',
           'Direct Intake Line: (720) 649-0734',
-          'Official Electronic Correspondence: kbowis@Abode-Mode.com',
+          'Official Electronic Correspondence: wdowis@abode-mode.com',
         ],
       },
       {
@@ -293,7 +293,7 @@ export const POLICY_SECTIONS: PolicySection[] = [
         ],
         bulletPoints: [
           'Direct Intake Line: (720) 649-0734 — Serving land sellers and buyers across all 50 states.',
-          'Electronic Document Transmissions: kbowis@Abode-Mode.com',
+          'Electronic Document Transmissions: wdowis@abode-mode.com',
         ],
       },
     ],
