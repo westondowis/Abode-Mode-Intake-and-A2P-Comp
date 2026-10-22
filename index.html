@@ -57,6 +57,23 @@
         }
       ]
     }
+    <!-- Suppress WebSocket / HMR disconnection errors in sandbox environment per platform constraints -->
+    <script>
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        if (reason && (
+          String(reason).indexOf('WebSocket') !== -1 ||
+          (reason.message && String(reason.message).indexOf('WebSocket') !== -1) ||
+          (reason.stack && String(reason.stack).indexOf('@vite/client') !== -1)
+        )) {
+          event.preventDefault();
+        }
+      });
+      window.addEventListener('error', function(event) {
+        if (event.message && String(event.message).indexOf('WebSocket') !== -1) {
+          event.preventDefault();
+        }
+      });
     </script>
   </head>
   <body class="bg-slate-50 text-slate-900 dark:bg-[#00171C] dark:text-slate-100 min-h-screen selection:bg-[#F2C864] selection:text-[#00171C] antialiased transition-colors duration-200">
