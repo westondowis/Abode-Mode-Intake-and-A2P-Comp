@@ -1,199 +1,211 @@
-# Abode Mode: Lead Intake Automation, Email Workflow & Light/Dark Theme
+# Architecture Overhaul & Security Lockdown: Abode Mode Land Intake Pipeline
 
-A comprehensive architectural upgrade connecting public inbound seller and buyer submissions to a zero-cost Google Workspace pipeline (Google Sheets, Gmail alerts, Google Tasks CRM action items), correcting acquisition email routing with structured mailto intake, and introducing a default-light theme with an accessible top-bar toggle.
+An end-to-end architectural overhaul and security lockdown of the Abode Mode land acquisition pipeline (`src/components/IntakePipeline.tsx`, `src/components/Header.tsx`, `ParcelPinDropModal.tsx`, `server.ts`, and associated lead services). This update addresses critical UI validation and security boundaries, standardizes direct contact actions, isolates public lead confirmation from internal admin tools, and deploys the complete 4-step seller intake pipeline.
+
+---
 
 ### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> Based on your answers to the clarifying questions, this plan is tailored around the lowest-cost, zero-maintenance Google Workspace architecture:
-
-- **Confirmed Decision 1 (Storage & Persistence)**: 100% free Google Sheets webhook via Google Apps Script (accompanied by local browser backup and server-side immutable audit logging), eliminating paid database hosting fees while giving you direct spreadsheet access on mobile and desktop.
-- **Confirmed Decision 2 (Alerts & Task Generation)**: Direct Gmail dispatch to `wdowis@abode-mode.com` plus automated Google Task creation with a deep link to the email and a ready-to-copy CRM dossier block.
-- **Confirmed Decision 3 (CRM Format)**: Universal General CRM structure with standardized key-value pairs formatted for instant copy-pasting into any CRM (Follow Up Boss, HubSpot, Lofty, or spreadsheets).
-- **Confirmed Decision 4 (Theming)**: Light theme as the crisp, professional default with an easily reachable sun/moon toggle switch pinned in the top navigation bar, preserving dark obsidian styling when toggled.
-- **Confirmed Decision 5 (Email Redirection)**: Standardized acquisition email to `wdowis@abode-mode.com` across all links and buttons, opening a pre-formatted email draft with subject *"I am interested in learning more."*, inquiry fields (name, property address, phone), and an explicit warning asterisk informing the sender that missing fields prevent contact.
+> This revised plan incorporates all requirements from your specification, partitioned into two unified phases:
+>
+> **Part 1: Critical UI, Validation & Security Fixes**
+> - **Step 4 Strict Validation**: Full Name, Phone Number, and Email Address are all mandatory before submission. The SMS A2P compliance checkboxes remain 100% optional and default unchecked.
+> - **Header Pre-populated Quick Actions**: Dedicated click-to-contact links for Phone (`tel:7206490734`), SMS Text (`sms:7206490734?body=...`), and Email (`mailto:wdowis@abode-mode.com?subject=...`) with pre-populated inquiry templates.
+> - **Theme Switcher Mobile & Desktop Fix**: Touch-action and pointer-event safe toggle on `<html>` root with persistent `localStorage` synchronization.
+> - **Strict Frontend UI Separation**: Complete elimination of admin-facing badges, Drive authentication modals, and raw backend views on public form completion. Visitors only see a clean, reassuring "Thank You" confirmation screen.
+> - **Silent Server-Side Notification Logging**: Robust server-side error logging for `ACQUISITION_NOTIFICATION_EMAIL`, `LEAD_WEBHOOK_URL`, and `RESEND_API_KEY` without exposing internal error stacks to the public client.
+>
+> **Part 2: Intake Pipeline Architecture Overhaul**
+> - **Step 1**: Google Maps Places address autocomplete + "Unknown Address" toggle with document drag-and-drop upload & `ParcelPinDropModal.tsx` (6-decimal coordinate capture) + Acres vs. Sq Ft unit conversion.
+> - **Step 2**: 6 dedicated dropdown sections for Vacant Land Utilities (Water, Sewer, Electric, Heating/Gas, Internet, Drainage) with exact industry-standard options.
+> - **Step 3**: Enriched unique features guidance + conditional Probate/Trust title inquiry + Asking Price completely removed.
+> - **Step 4**: Animated spotlight hero card for `ASKING PRICE:` with currency formatting, followed by required contact details and CTIA/A2P compliance disclosures.
 
 ---
 
-### 1. Overview & Core Concept
+### 1. Overview & System Architecture
 
-- **What It Does**: Upgrades Abode Mode from an isolated, client-only prototype into an end-to-end automated land acquisition and buyer intake platform. When a landowner or land buyer submits an inquiry, the system simultaneously stores their record in an immutable audit ledger, mirrors it into Google Sheets, dispatches a rich notification email to `wdowis@abode-mode.com`, and provisions a Google Task titled *"Input Lead [Name] into CRM"* with direct links and structured notes. Additionally, visitors who prefer email can click any acquisition contact point to launch a pre-populated inquiry template.
-- **Target Audience / Persona**:
-  - *Landowners & Sellers*: Seeking quick cash offers or land valuation without technical friction.
-  - *Land Buyers & Investors*: Inquiring about inventory, recreational parcels, or builder acreage.
-  - *William Dowis (Acquisitions Desk)*: Manages inbound inquiries across Gmail, Google Tasks, and CRM from laptop or mobile with zero data re-entry friction.
-- **Key Value**: Guarantees zero lost leads with zero recurring infrastructure costs, immediate notifications within seconds of submission, and seamless transition from inquiry to CRM.
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Abode Mode Client App                           │
+│                                                                        │
+│  ┌───────────────────────┐          ┌───────────────────────────────┐  │
+│  │   Header Contact Bar  │          │   ParcelPinDropModal (NEW)    │  │
+│  │   - Phone: tel:       │          │   - Interactive Map Pin-Drop  │  │
+│  │   - SMS: sms:?body=   │          │   - 6-decimal Lat/Lng output  │  │
+│  │   - Email: mailto:    │          └───────────────┬───────────────┘  │
+│  │   - Robust Theme Sw.  │                          │                  │
+│  └──────────┬────────────┘                          ▼                  │
+│             │                       ┌───────────────────────────────┐  │
+│             │                       │      IntakePipeline.tsx       │  │
+│             │                       │  Step 1: Places Search, Doc   │  │
+│             │                       │          Upload, Acre/SqFt    │  │
+│             │                       │  Step 2: 6 Utility Dropdowns  │  │
+│             │                       │  Step 3: Notes & Probate Info │  │
+│             │                       │  Step 4: Asking Price Hero    │  │
+│             │                       │          + Strict Contact Val │  │
+│             │                       └───────────────┬───────────────┘  │
+│             │                                       │                  │
+│             ▼                                       ▼                  │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ Public Submission Result Screen: Pure "Thank You" Confirmation   │  │
+│  │ (No Admin Badges, No Drive Auth Popups, No Data Inspection Views)│  │
+│  └──────────────────────────────────┬───────────────────────────────┘  │
+└─────────────────────────────────────┼──────────────────────────────────┘
+                                      │
+                                      ├──► [POST /api/leads/submit]
+                                      │         │
+                                      │         ├──► Immutable Local Audit Log
+                                      │         ├──► Firestore Document Storage
+                                      │         ├──► Asynchronous Resend/SMTP Email
+                                      │         └──► Inbound Webhook Dispatch
+                                      │              (With server-side error logs)
+                                      ▼
+                        [Google Drive Diligence Vault]
+                        (Automated file upload on submit)
+```
 
 ---
 
 ### 2. User Experience & Visual Design
 
-#### Key User Flows
-1. **Public Web Lead Submission**:
-   - Visitor fills out seller intake (APN, address, acreage, condition, asking price, contact info, and CTIA-compliant SMS consent checkboxes) or buyer criteria.
-   - Form validates phone/email format in real time and disables double-submission.
-   - Upon clicking *"Submit Property Details"*, an instantaneous loading state displays while the submission simultaneously writes to the Google Sheets webhook and server endpoints.
-   - Visitor receives an instant confirmation screen with their unique Lead Reference ID, while William simultaneously receives a Gmail notification and a Google Task.
-2. **Direct Mailto Ingestion Flow**:
-   - Visitor clicks the acquisition email or direct contact button.
-   - Default email client opens immediately addressed to `wdowis@abode-mode.com`.
-   - Subject is set to: `I am interested in learning more.`
-   - Body contains:
-     ```text
-     name: 
-     property address: 
-     best phone number: 
+#### Header & Contact Actions
+- **Click-to-Contact Bar**:
+  - **Phone Icon & Label**: `tel:7206490734`
+  - **SMS Text Icon & Label**: `sms:7206490734?body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A`
+  - **Email Icon & Label**: `mailto:wdowis@abode-mode.com?subject=Land%20Sale%20Inquiry&body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A`
+- **Theme Switcher**:
+  - Accessible on desktop and mobile (`onTouchEnd` and `onClick` handlers with `touch-action: manipulation`).
+  - Ensures clean synchronous class manipulation on `document.documentElement` (`light` vs. `dark`) with zero delay or touch bounce.
 
-     * WARNING: If the above fields are not completed before sending, our acquisition team will not be able to get in contact with you or evaluate your property.
-     ```
-3. **Theme Switcher Experience**:
-   - App loads in **Light Mode** by default: crisp architectural porcelain background, deep forest/slate typography, and warm amber accents.
-   - A single-click switch with smooth icon transition (Sun / Moon) in the top bar allows toggling between Light and Dark mode.
-   - The user's selection is stored in `localStorage` (`abode_theme: 'light' | 'dark'`) and respects system preferences on first visit if preferred.
+#### Intake Pipeline: Step-by-Step UI
 
-#### Visual Identity & Theme
-- **Light Theme (Default)**:
-  - Background Canvas: Crisp porcelain / off-white (`#F8FAFC` to `#FFFFFF`).
-  - Card & Container Surfaces: Pure white (`#FFFFFF`) with subtle hairline borders (`border-slate-200`) and soft, natural shadows (`shadow-sm`).
-  - Typography: Deep midnight slate (`#0F172A`) for display headings, balanced slate (`#334155`) for readable body text, and muted slate (`#64748B`) for metadata.
-  - Accent Tones: Warm earth gold / amber (`#D97706` / `#B45309`) for primary calls-to-action and deep teal / evergreen (`#0D9488` / `#0F766E`) for secondary trust accents.
-- **Dark Theme (Toggleable)**:
-  - Background Canvas: Deep obsidian slate (`#061116` to `#0B1920`).
-  - Card Surfaces: Deep charcoal teal (`#00171C`) with hairline cyan/slate borders (`#0A4251`).
-  - Typography: Pale platinum (`#F1F5F9`) and cyan-tinted muted text (`#94A3B8`).
-  - Accents: Radiant amber (`#F2C864`) and electric cyan (`#22D3EE`).
-- **Typography & Hierarchy**:
-  - Brand & Hero Headings: `Cinzel` / `Plus Jakarta Sans` for institutional authority.
-  - Navigation & Body: Clean, modern sans (`Plus Jakarta Sans` / `DM Sans`), 15–16px body measure with relaxed leading (1.6).
-  - Data, Timestamps & Identifiers: Tabular monospace (`tabular-nums font-mono`).
+##### Step 1: Parcel Identity, Location & Lot Sizing
+1. **Google Places Search**:
+   - High-contrast search input with magnifying glass icon and instant predictive address suggestions.
+   - Selecting a suggestion automatically populates: Street Address, City, County, State, and Zip Code.
+2. **"I do not know the physical address" Toggle**:
+   - Prominent checkbox styled cleanly below the search bar.
+   - When checked, collapses street address inputs and immediately reveals two intuitive fallback options:
+     - **Option A (Document Drag & Drop)**: Dropzone for deed PDFs, property tax payment receipts, parcel surveys, or plats. Includes file type validation, size indicator, real-time preview thumbnail/icon, and remove option. Staged for automatic sync to Google Drive diligence vault.
+     - **Option B (Pin-Drop Interactive Map)**: Distinct button launching `ParcelPinDropModal.tsx`. Displays an interactive map view allowing the user to zoom into their land and click to place a target pin. Extracts and locks coordinates to 6 decimal places (e.g. `37.284912, -105.419204`).
+3. **Lot Size Unit Selector**:
+   - Segmented dropdown: **Acres** vs. **Square Feet**.
+   - Direct numerical input. If Square Feet is selected (e.g. `43,560`), an inline dynamic helper immediately displays: `Equivalent: 1.00 Acre` (`value / 43560`).
 
-#### Component Styling & Layout
-- Top navigation bar complies with the strict 3-zone contract: Brand Wordmark (Zone 1) — Navigation Links (Zone 2) — Action & Theme Switcher (Zone 3).
-- Forms use single-elevation cards with clean label typography, floating helper cues, and clear error outlines.
-- No pill-badge clutter, no mechanical code prefixes, and no pulsing fake telemetry.
+##### Step 2: Vacant Land Utility Intake
+Structured into 6 clean, accessible select dropdowns with explicit option descriptions:
+1. **Access to Water**:
+   - City / County Water at the Street
+   - City / County Water Nearby (Extension Required)
+   - Existing Private Well on Site
+   - Private Well Needed
+   - Unknown
+2. **Sewer & Wastewater**:
+   - City / County Sewer at the Street
+   - City / County Sewer Nearby (Extension Required)
+   - Existing Septic System on Site
+   - Septic System Needed (Passed Perc Test)
+   - Septic System Needed (No Perc Test on Record)
+   - Unknown
+3. **Electric Service**:
+   - Power at the Property Line
+   - Power Nearby (Poles Required)
+   - Existing Electric Meter / Service Drop on Site
+   - Off-Grid Only
+   - Unknown
+4. **Heating & Gas**:
+   - Natural Gas at the Street
+   - Propane Required (Bulk Tank)
+   - All-Electric
+   - Unknown
+5. **Internet & Telecommunications**:
+   - Cable / Fiber at the Street
+   - DSL / Telephone Wire Only
+   - Wireless / Satellite Only
+   - Unknown
+6. **Surface Drainage & Stormwater**:
+   - Dry Lot with Roadside Drainage
+   - Low-Lying / Seasonal Standing Water
+   - Mapped Floodplain or Wetland Present
+   - Unknown
+
+##### Step 3: Parcel Notes & Title Standings
+1. **Standout Parcel Notes**:
+   - Textarea with guided placeholder:
+     *"Highlight unique features (e.g., year-round creek, river running through property, mountain views, mature timber, backing to National Forest / BLM land, established trail access, perimeter fencing, cleared building pad)..."*
+2. **Ownership & Conditional Probate Inquiry**:
+   - Retains ownership type selector (`Sole Owner`, `Joint / Tenants in Common`, `Inherited`, `Probate`, `Held in Trust`, `Tax Lien / Delinquent`, `Other`).
+   - If `Inherited`, `Probate`, or `Held in Trust` is chosen, an inquiry card smoothly expands:
+     - Prompt: *"Do you have probated documentation or verified will information entitling you the rightful owner?"*
+     - Radio choices:
+       - *Yes, probate completed & documentation on file*
+       - *In probate proceedings currently*
+       - *Will / trust documents available but not probated*
+       - *No formal probate opened yet*
+       - *Other / Custom details (reveals text note)*
+3. **Asking Price Removed**:
+   - Completely excised from Step 3.
+
+##### Step 4: Asking Price Spotlight & Submission
+1. **Hero Spotlight Card**:
+   - Positioned at the very top of Step 4.
+   - Styled with a subtle radiant gold border, pulsing glow animation, and high-visibility typography:
+     - Header: **`ASKING PRICE:`**
+     - Large formatted currency input (`$`) with thousands comma separation.
+     - Subtitle: *"What cash price would you be thrilled to accept to close quickly?"*
+2. **Strict Contact Validation**:
+   - **Full Name**: Required.
+   - **Phone Number**: Required (`type="tel"`).
+   - **Email Address**: Required (`type="email"`).
+   - Clear, friendly inline error alerts if any of these three fields are missing when submitting.
+3. **A2P 10DLC SMS Disclosures**:
+   - Preserved exactly as required: Two separate, unbundled, **unchecked by default**, and **optional** checkboxes for transactional and promotional texts.
+   - Submission proceeds smoothly whether the checkboxes are checked or left unchecked.
+4. **Public "Thank You" Screen**:
+   - When submitted, the form transitions to an elegant, client-facing confirmation:
+     - Confirmation checkmark and client name.
+     - Unique Lead Reference ID.
+     - Clear expectation message: *"Our acquisitions desk is reviewing county records and GIS data. We will reach out to you within 24 business hours."*
+     - Direct button to submit another parcel or contact the desk.
+     - **Strictly No Admin Tools**: No "Drive Vault" buttons, no "Sheets Sync" buttons, and no raw CRM debug payloads on this public page. (Admin tools remain securely available via dedicated admin entry points).
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
+### 3. Technical Implementation & Data Strategy
 
-#### Decision 1: Google Sheets Apps Script Webhook vs. Paid Third-Party Form Backend
-- **Chosen Approach**: Standalone Google Apps Script endpoint triggered via HTTPS POST, saving rows directly to a private Google Sheet owned by the admin account.
-- **Why**: 100% free, runs within Google Workspace quota without server provisioning or monthly SaaS fees (saves $20–$50/mo on Typeform/Zapier), and gives instant collaborative spreadsheet views on Google Drive and mobile Sheets app.
-- **Alternatives Considered**: 
-  - *Zapier/Make*: Requires monthly subscriptions once lead volume scales.
-  - *Firestore-only*: Works well, but viewing leads requires accessing the GCP / Firebase console rather than an intuitive spreadsheet.
-
-#### Decision 2: Direct Gmail Alert + Google Tasks CRM Integration
-- **Chosen Approach**: Two-pronged notification:
-  1. Instant email dispatch with formatted lead card sent to `wdowis@abode-mode.com`.
-  2. Automated Google Task created in the user's Google Tasks list with title `[New Lead] <Name> - <Address>`, containing deep link to Gmail search for that lead ID and a copy-paste ready CRM intake block.
-- **Why**: Allows William to review inquiries in his email inbox and mark them off in his daily task list once entered into the CRM, preventing dropped balls.
-- **Alternatives Considered**: 
-  - *Calendar events*: Clutters the calendar schedule with tentative tasks instead of real appointments.
-
-#### Decision 3: Standardizing Acquisition Mailto Template with Validation Warning
-- **Chosen Approach**: Update all direct acquisition links (`mailto:wdowis@abode-mode.com?...`) to include prefilled property inquiry fields and a prominent asterisk warning.
-- **Why**: Minimizes back-and-forth by ensuring that sellers reaching out via email provide property address, phone number, and name on their very first message.
+#### Component Responsibilities
+- `src/components/Header.tsx`:
+  - Updated contact links with pre-populated phone, SMS, and mailto hrefs.
+  - Multi-platform theme switcher with touch optimization.
+- `src/components/ParcelPinDropModal.tsx` *(New Component)*:
+  - Full-screen modal with map viewport, pin cursor, search/center tools, and precise coordinate readout (`latitude.toFixed(6)`, `longitude.toFixed(6)`).
+  - Confirms selection and passes coordinates back to parent form.
+- `src/components/IntakePipeline.tsx`:
+  - 4-step pipeline implementation incorporating Google Places search, "Unknown Address" fallbacks, acreage unit conversions, 6-section utility dropdowns, conditional probate inquiry, Step 4 Asking Price hero card, strict Phone/Email validation, and clean public confirmation screen.
+- `src/services/leadSubmission.ts`:
+  - Typed payload extensions for utilities (`utilityWater`, `utilitySewer`, etc.), probate status, uploaded file metadata, and GPS coordinates.
+- `server.ts` & `server/leadService.ts`:
+  - Robust server-side logging for `ACQUISITION_NOTIFICATION_EMAIL`, `LEAD_WEBHOOK_URL`, and `RESEND_API_KEY`.
+  - Non-blocking asynchronous notifications with comprehensive `try/catch` error telemetry logged to server console.
 
 ---
 
-### 4. Technical Architecture & Data Strategy *(Technical Reference)*
+### 4. Verification Plan
 
-#### System Architecture & Lead Flow Diagram
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          Abode Mode Client                             │
-│                                                                        │
-│  ┌───────────────────────┐          ┌───────────────────────────────┐  │
-│  │   IntakePipeline.tsx   │          │      Direct Mailto Action     │  │
-│  │ (Seller / Buyer Form) │          │  (wdowis@abode-mode.com)      │  │
-│  └──────────┬────────────┘          └───────────────┬───────────────┘  │
-│             │                                       │                  │
-│             ▼                                       ▼                  │
-│  ┌─────────────────────────────────┐   ┌────────────────────────────┐  │
-│  │   leadSubmission.ts (Service)   │   │ Pre-filled Email with:     │  │
-│  │  - Real-time Field Validation   │   │ - Name, Address, Phone     │  │
-│  │  - CTIA / A2P 10DLC Timestamp   │   │ - Asterisk Omission Notice │  │
-│  │  - LocalStorage Backup Mirror   │   └────────────────────────────┘  │
-│  └──────────┬──────────────────────┘                                   │
-└─────────────┼──────────────────────────────────────────────────────────┘
-              │
-              ├──► [POST /api/leads/submit] ──► Server Process:
-              │     │                           - Appends to immutable leads_audit.jsonl
-              │     │                           - Writes to Firestore collection 'leads'
-              │     │                           - Dispatches email alert to wdowis@abode-mode.com
-              │     │                           - Dispatches webhook (if configured)
-              │     │
-              └──► [Google Sheets Webhook]  ──► Google Apps Script:
-                    (No-cost HTTP POST)         - Appends row to Lead Tracker Sheet
-                                                - Creates Google Task: "Input [Lead] into CRM"
-                                                  with CRM clipboard block & Gmail link
-```
-
-#### Data Model: Inbound Lead Record
-
-| Field Name | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Unique identifier (e.g., `ABODE-K92X-4912`) |
-| `submittedAt` | `ISO 8601` | Submission timestamp |
-| `flow` | `'sell' \| 'buy'` | Intake category |
-| `fullName` | `string` | Seller or buyer name |
-| `phone` | `string` | Direct contact phone |
-| `email` | `string` | Contact email |
-| `propertyAddress` | `string` | Street address, APN, or parcel location |
-| `county` / `state` | `string` | Location details |
-| `acreage` | `string` | Land size in acres |
-| `askingPrice` | `string` | Desired cash offer or buyer budget |
-| `motivation` | `string` | Reason for selling or buyer intended use |
-| `timeline` | `string` | Target closing timeline (e.g. 14 days) |
-| `occupancyCondition`| `string` | Title/ownership status |
-| `notes` | `string` | Additional property highlights |
-| `smsTransactionalConsent` | `boolean` | Explicit A2P 10DLC opt-in for transactional texts |
-| `smsMarketingConsent` | `boolean` | Explicit opt-in for marketing texts |
-| `consentTimestamp` | `ISO 8601` | Exact audit timestamp when consent box was checked |
-| `exactConsentDisclosureText` | `string` | Verbatim disclosure text agreed to |
-
-#### CRM Clipboard Block Structure (Stored in Google Task Notes)
-```text
---- ABODE MODE INBOUND LEAD DOSSIER ---
-Lead ID:         ABODE-L82F-1029
-Source:          Abode Mode Public Ingestion (abode-mode.com)
-Submitted:       2026-10-21 17:45 UTC
-
-CONTACT:
-Name:            John Doe
-Phone:           (720) 555-0199
-Email:           johndoe@example.com
-
-PROPERTY:
-Address / APN:   1400 Mountain Vista Trail, Costilla County, CO
-Parcel Number:   APN-703-12-880
-County & State:  Costilla County, CO
-Acreage:         5.2 Acres
-Asking Price:    $18,500 Cash
-Motivation:      Inherited property, lives out of state, desires fast cash close
-Timeline:        Immediate (< 30 days)
-Condition:       Vacant, clear title, property taxes up to date
-
-ACTION REQUIRED:
-[ ] 1. Copy above details into CRM (Follow Up Boss / HubSpot / Lofty)
-[ ] 2. Perform GIS / county parcel lookup
-[ ] 3. Generate initial valuation offer range
-[ ] 4. Call seller back within 2 business hours
-```
-
-#### Interactive Component & State Mapping
-1. **Theme State (`ThemeContext.tsx` or `App.tsx`)**:
-   - `theme`: `'light' | 'dark'` (initialized from `localStorage.getItem('abode_theme') || 'light'`).
-   - `toggleTheme`: Switches root class `dark` on `document.documentElement` and persists to storage.
-   - Header contains a compact, accessible toggle button with `aria-label="Toggle light and dark theme"`.
-2. **Intake Form State (`LandInquiryForm.tsx` & `IntakePipeline.tsx`)**:
-   - Submits to `submitLead(payload)`.
-   - Manages `isSubmitting`, `submitError`, and `submissionResult` states cleanly.
-   - When submitted, returns immediate UI feedback with reference number and automated copy-to-clipboard functionality.
-3. **Acquisition Mailto Buttons (`Header.tsx`, `Footer.tsx`, `AboutUs.tsx`, `LegalModal.tsx`)**:
-   - Updated link targets: `mailto:wdowis@abode-mode.com?subject=I%20am%20interested%20in%20learning%20more.&body=name%3A%0Aproperty%20address%3A%0Abest%20phone%20number%3A%0A%0A*%20WARNING%3A%20If%20the%20above%20fields%20are%20not%20completed%20before%20sending%2C%20our%20acquisition%20team%20cannot%20get%20in%20contact%20with%20you.`
-4. **Google Sheets + Google Tasks Integration Script (`googleAppsScript.js`)**:
-   - Bundled in repository as a ready-to-deploy script template for the user with 1-click deployment instructions.
-   - Includes Google Apps Script code that hooks the sheet row insertion to `Tasks.Tasks.insert()` and `GmailApp.sendEmail()`.
+1. **Build & Lint Verification**:
+   - Run `compile_applet` and `lint_applet` to ensure zero compilation or type errors.
+2. **Header Action Verification**:
+   - Test Phone link (`tel:7206490734`).
+   - Test SMS link with pre-populated body.
+   - Test Email link with subject and body template.
+   - Test Theme Switcher on mobile touch emulation and desktop clicks.
+3. **Pipeline Verification**:
+   - **Step 1**: Test address autocomplete suggestion and auto-population; test "I do not know address" toggle with file upload preview and `ParcelPinDropModal` coordinate capture; test Acres vs. Sq Ft conversion.
+   - **Step 2**: Verify all 6 utility dropdowns render the exact options and descriptions.
+   - **Step 3**: Verify unique features placeholder; verify conditional probate question triggers only on Inherited/Probate/Trust; verify Asking Price is absent.
+   - **Step 4**: Verify animated Asking Price spotlight card; test submission without Phone or Email to ensure validation triggers; test submission with Phone + Email and unchecked SMS box to verify submission succeeds.
+   - **Confirmation**: Verify the public confirmation screen is 100% clean of admin widgets.
+4. **Backend Notification Verification**:
+   - Verify server log output for lead persistence, audit file append, and email/webhook dispatch.

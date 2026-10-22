@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail } from 'lucide-react';
+import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail, MessageSquare } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 import { ENTITY_DETAILS } from '../data/policyData';
 import { useTheme } from '../context/ThemeContext';
-import { getAcquisitionMailtoHref, ACQUISITION_EMAIL } from '../utils/contactEmail';
 
 interface HeaderProps {
   onOpenPrivacyPolicy: (sectionId?: string) => void;
@@ -23,7 +22,16 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
-  const mailtoHref = getAcquisitionMailtoHref();
+  const phoneHref = 'tel:7206490734';
+  const smsHref =
+    'sms:7206490734?body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A';
+  const mailHref =
+    'mailto:wdowis@abode-mode.com?subject=Land%20Sale%20Inquiry&body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A';
+
+  const handleThemeTouch = (e: React.TouchEvent) => {
+    e.preventDefault();
+    toggleTheme();
+  };
 
   return (
     <header className="w-full border-b border-slate-200 bg-white/95 text-slate-800 dark:border-cyan-950/60 dark:bg-[#061014]/90 dark:text-slate-100 backdrop-blur sticky top-0 z-50 no-print transition-colors duration-200 shadow-xs">
@@ -32,44 +40,55 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Top Intake & Acquisitions Contact Bar */}
         <div className="flex flex-wrap items-center justify-between text-xs py-2 border-b border-slate-200/80 text-slate-600 dark:text-cyan-400/80 dark:border-cyan-900/30 gap-y-1">
           <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
-            <div className="flex items-center space-x-1.5">
+            <span className="font-semibold tracking-wide text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-semibold tracking-wide text-slate-700 dark:text-slate-300">DIRECT INTAKE:</span>
-              <a
-                href={`tel:${ENTITY_DETAILS.primaryPhoneRaw}`}
-                className="text-amber-600 dark:text-amber-400 font-bold hover:underline"
-                title="Call our direct acquisitions desk"
-              >
-                {ENTITY_DETAILS.primaryPhone}
-              </a>
-            </div>
+              <span>DIRECT CONTACT:</span>
+            </span>
 
-            <span className="hidden sm:inline text-slate-300 dark:text-cyan-900">|</span>
+            {/* Direct Phone Call Action */}
+            <a
+              href={phoneHref}
+              className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold hover:underline py-0.5 px-1.5 rounded hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+              title="Call our acquisitions desk directly"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              <span>(720) 649-0734</span>
+            </a>
 
-            {/* Direct Acquisition Email with Pre-Filled Mailto Form */}
-            <div className="flex items-center space-x-1.5">
+            <span className="text-slate-300 dark:text-cyan-900">|</span>
+
+            {/* Direct SMS Text Action */}
+            <a
+              href={smsHref}
+              className="inline-flex items-center gap-1 text-teal-700 dark:text-cyan-300 font-bold hover:underline py-0.5 px-1.5 rounded hover:bg-teal-50 dark:hover:bg-cyan-950/40 transition-colors"
+              title="Text our acquisitions team with pre-filled inquiry details"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
+              <span>Text Us</span>
+            </a>
+
+            <span className="text-slate-300 dark:text-cyan-900">|</span>
+
+            {/* Direct Email Action */}
+            <a
+              href={mailHref}
+              className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold hover:text-amber-600 dark:hover:text-amber-300 hover:underline py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Email our acquisitions desk directly"
+            >
               <Mail className="w-3.5 h-3.5 text-amber-500" />
-              <span className="font-semibold tracking-wide text-slate-700 dark:text-slate-300 hidden md:inline">ACQUISITION DESK:</span>
-              <a
-                href={mailtoHref}
-                className="text-teal-700 dark:text-cyan-300 font-bold hover:underline flex items-center gap-1 group"
-                title="Send pre-filled inquiry email to wdowis@abode-mode.com"
-              >
-                <span>{ACQUISITION_EMAIL}</span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono">(Direct Email)</span>
-              </a>
-            </div>
-
-            <span className="hidden lg:inline text-slate-300 dark:text-cyan-900">|</span>
-            <span className="hidden lg:inline text-slate-500 dark:text-slate-400">All 50 U.S. States</span>
+              <span className="hidden sm:inline">wdowis@abode-mode.com</span>
+              <span className="sm:hidden">Email</span>
+            </a>
           </div>
 
           <div className="flex items-center space-x-3 sm:space-x-4">
             {/* Quick Theme Switch in Top Bar */}
             <button
               onClick={toggleTheme}
+              onTouchEnd={handleThemeTouch}
+              style={{ touchAction: 'manipulation' }}
               type="button"
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:text-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors cursor-pointer select-none touch-manipulation"
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
               aria-label={`Toggle theme (currently ${theme})`}
             >
@@ -153,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
               About Us
             </a>
             <a
-              href={mailtoHref}
+              href={mailHref}
               className="text-teal-700 hover:text-teal-800 dark:text-cyan-400 dark:hover:text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer"
               title="Compose pre-filled email to wdowis@abode-mode.com"
             >
@@ -167,8 +186,10 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Easy Sun/Moon Switch Switcher Button */}
             <button
               onClick={toggleTheme}
+              onTouchEnd={handleThemeTouch}
+              style={{ touchAction: 'manipulation' }}
               type="button"
-              className="p-2 text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-md transition-colors cursor-pointer shadow-xs"
+              className="p-2 text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 dark:text-slate-300 dark:hover:text-white dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-md transition-colors cursor-pointer shadow-xs select-none touch-manipulation"
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
               aria-label="Toggle theme"
             >
@@ -219,7 +240,9 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex md:hidden items-center space-x-1.5">
             <button
               onClick={toggleTheme}
-              className="p-2 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white rounded cursor-pointer"
+              onTouchEnd={handleThemeTouch}
+              style={{ touchAction: 'manipulation' }}
+              className="p-2 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white rounded cursor-pointer select-none touch-manipulation"
               aria-label={`Toggle theme (currently ${theme})`}
               title="Toggle theme"
             >
@@ -272,12 +295,12 @@ export const Header: React.FC<HeaderProps> = ({
               <span>I Want to Buy</span>
             </button>
             <a
-              href={mailtoHref}
+              href={mailHref}
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-2 px-3 py-2 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-cyan-950/60 rounded"
             >
               <Mail className="w-4 h-4 text-amber-500" />
-              <span>Email Acquisitions ({ACQUISITION_EMAIL})</span>
+              <span>Email Acquisitions (wdowis@abode-mode.com)</span>
             </a>
             <a
               href="#our-process"
@@ -318,7 +341,13 @@ export const Header: React.FC<HeaderProps> = ({
                 setMobileMenuOpen(false);
                 toggleTheme();
               }}
-              className="w-full text-left flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-cyan-950/60 rounded cursor-pointer"
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                setMobileMenuOpen(false);
+                toggleTheme();
+              }}
+              style={{ touchAction: 'manipulation' }}
+              className="w-full text-left flex items-center gap-2 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-cyan-950/60 rounded cursor-pointer select-none touch-manipulation"
             >
               {theme === 'light' ? (
                 <>

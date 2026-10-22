@@ -60,6 +60,21 @@ app.post('/api/leads/submit', async (req, res) => {
       timeline: String(data.timeline || data.sellTimeline || data.purchasingTimeline || '').trim(),
       occupancyCondition: String(data.occupancyCondition || data.sellOwnershipStatus || '').trim(),
       notes: String(data.notes || '').trim(),
+      // Extended Vacant Land Utilities
+      utilityWater: data.utilityWater ? String(data.utilityWater) : undefined,
+      utilitySewer: data.utilitySewer ? String(data.utilitySewer) : undefined,
+      utilityElectric: data.utilityElectric ? String(data.utilityElectric) : undefined,
+      utilityHeatingGas: data.utilityHeatingGas ? String(data.utilityHeatingGas) : undefined,
+      utilityInternet: data.utilityInternet ? String(data.utilityInternet) : undefined,
+      utilityDrainage: data.utilityDrainage ? String(data.utilityDrainage) : undefined,
+      // Location Fallbacks & Unit Sizing
+      unknownAddress: Boolean(data.unknownAddress),
+      gpsCoordinates: data.gpsCoordinates || null,
+      documentAttachment: data.documentAttachment || null,
+      lotSizeUnit: data.lotSizeUnit || 'acres',
+      lotSizeRawValue: data.lotSizeRawValue ? String(data.lotSizeRawValue) : undefined,
+      ownershipStatus: data.ownershipStatus ? String(data.ownershipStatus) : undefined,
+      probateDocumentationStatus: data.probateDocumentationStatus ? String(data.probateDocumentationStatus) : undefined,
       // A2P 10DLC & CTIA Carrier Compliance Metadata
       smsTransactionalConsent: Boolean(data.smsTransactionalConsent ?? data.smsConsentTransactional ?? false),
       smsMarketingConsent: Boolean(data.smsMarketingConsent ?? data.smsConsentMarketing ?? false),

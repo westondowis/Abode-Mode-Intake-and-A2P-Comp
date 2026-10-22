@@ -10,7 +10,38 @@ export interface LeadPayload {
   parcelNumber?: string;
   county?: string;
   state?: string;
+  city?: string;
+  zipCode?: string;
   acreage?: string;
+  lotSizeUnit?: 'acres' | 'sqft';
+  lotSizeRawValue?: string;
+  
+  // Fallback: Unknown Address & GPS Coordinates
+  unknownAddress?: boolean;
+  gpsCoordinates?: {
+    lat: number;
+    lng: number;
+    formatted: string;
+  } | null;
+  documentAttachment?: {
+    name: string;
+    size: number;
+    type: string;
+    dataUrl?: string;
+  } | null;
+
+  // Step 2: Vacant Land Utility Intake
+  utilityWater?: string;
+  utilitySewer?: string;
+  utilityElectric?: string;
+  utilityHeatingGas?: string;
+  utilityInternet?: string;
+  utilityDrainage?: string;
+
+  // Step 3: Title & Probate Standings
+  ownershipStatus?: string;
+  probateDocumentationStatus?: string;
+  hasProbateDocumentation?: string;
   
   // Deal Terms & Motivation
   askingPrice?: string;
@@ -83,6 +114,17 @@ export function formatLeadForCrm(lead: LeadPayload | StoredLeadRecord): string {
   const txConsent = lead.smsTransactionalConsent ? 'YES' : 'NO';
   const mktConsent = lead.smsMarketingConsent ? 'YES' : 'NO';
 
+  const gpsInfo = lead.gpsCoordinates ? `GPS Pinned: ${lead.gpsCoordinates.formatted}` : '';
+  const probateInfo = lead.probateDocumentationStatus ? `Probate/Will Status: ${lead.probateDocumentationStatus}` : '';
+  const utilitiesBlock = [
+    lead.utilityWater ? `Water: ${lead.utilityWater}` : null,
+    lead.utilitySewer ? `Sewer: ${lead.utilitySewer}` : null,
+    lead.utilityElectric ? `Electric: ${lead.utilityElectric}` : null,
+    lead.utilityHeatingGas ? `Gas: ${lead.utilityHeatingGas}` : null,
+    lead.utilityInternet ? `Internet: ${lead.utilityInternet}` : null,
+    lead.utilityDrainage ? `Drainage: ${lead.utilityDrainage}` : null,
+  ].filter(Boolean).join(' | ');
+
   return `============================================================
 📋 ABODE MODE - GENERAL CRM INTAKE BLOCK
 ------------------------------------------------------------
@@ -99,13 +141,16 @@ PROPERTY / PARCEL DETAILS:
 Address / APN:    ${address}
 County & State:   ${lead.county || 'N/A'}, ${lead.state || 'N/A'}
 Acreage:          ${lead.acreage || 'N/A'}
+${gpsInfo ? `Coordinates:      ${gpsInfo}\n` : ''}${lead.documentAttachment ? `Attached File:    ${lead.documentAttachment.name} (${lead.documentAttachment.size} bytes)\n` : ''}
+UTILITIES & DRAINAGE:
+${utilitiesBlock || 'Standard Land Utilities Profile'}
 
 DEAL TERMS & MOTIVATION:
 Asking / Budget:  ${lead.askingPrice || 'N/A'}
 Timeline:         ${lead.timeline || 'Standard'}
 Motivation / Use: ${lead.motivation || 'N/A'}
 Condition/Status: ${lead.occupancyCondition || 'N/A'}
-Additional Notes: ${lead.notes || 'None'}
+${probateInfo ? `Title Standing:   ${probateInfo}\n` : ''}Additional Notes: ${lead.notes || 'None'}
 
 A2P 10DLC COMPLIANCE RECORD:
 SMS Tx Consent:   ${txConsent}

@@ -211,18 +211,24 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
         body: JSON.stringify(webhookPayload),
       });
 
-      console.log(`[LeadService] Dispatched lead webhook to ${webhookUrl}: HTTP ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'No response body');
+        console.error(
+          `[LeadService:Error] Webhook POST to ${webhookUrl} returned HTTP ${response.status}: ${errorText}`
+        );
+      } else {
+        console.log(`[LeadService] Dispatched lead webhook to ${webhookUrl}: HTTP ${response.status}`);
+      }
     } catch (whErr) {
-      console.warn('[LeadService] Webhook dispatch notice:', whErr);
+      console.error('[LeadService:Error] Webhook network/fetch failure for lead:', lead.id, whErr);
     }
   }
 
-  // If SMTP or email dispatch service credentials are present, fire email
-  // (e.g. SENDGRID_API_KEY, RESEND_API_KEY)
+  // If email dispatch service credentials are present, fire email (e.g. RESEND_API_KEY)
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
     try {
-      await fetch('https://api.resend.com/emails', {
+      const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${resendApiKey}`,
@@ -235,10 +241,23 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
           text: leadCardPlain,
         }),
       });
-      console.log(`[LeadService] Email dispatched via Resend to ${targetEmail}`);
+
+      if (!emailRes.ok) {
+        const errText = await emailRes.text().catch(() => 'No response text');
+        console.error(
+          `[LeadService:Error] Resend email dispatch failed (HTTP ${emailRes.status}) for ${targetEmail}: ${errText}`
+        );
+      } else {
+        console.log(`[LeadService] Email alert dispatched via Resend to ${targetEmail}`);
+      }
     } catch (resendErr) {
-      console.warn('[LeadService] Resend email dispatch failed:', resendErr);
+      console.error(
+        `[LeadService:Error] Network error during Resend email dispatch to ${targetEmail}:`,
+        resendErr
+      );
     }
+  } else {
+    console.log(`[LeadService] Notice: RESEND_API_KEY not configured. Lead alert logged locally for ${targetEmail}.`);
   }
 }
 
