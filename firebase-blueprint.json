@@ -151,12 +151,58 @@
         }
       },
       "required": ["email", "role"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Automated underwriting review task generated upon lead intake",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Task identifier formatted as task_[leadId]"
+        },
+        "leadId": {
+          "type": "string",
+          "description": "Associated lead ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Task title summary"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Pending Underwriting", "In Progress", "Completed", "Archived"],
+          "description": "Current workflow underwriting status"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "normal", "low"],
+          "description": "Priority tier"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation ISO timestamp"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date calculated 24 business hours out"
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "Assignee email or role"
+        }
+      },
+      "required": ["id", "leadId", "status", "dueDate"]
     }
   },
   "firestore": {
     "/leads/{leadId}": {
       "schema": "Lead",
       "description": "Incoming land acquisition or buyer criteria lead record"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Underwriting review task record"
     },
     "/admins/{adminId}": {
       "schema": "Admin",

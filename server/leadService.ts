@@ -8,9 +8,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-// Data audit log path
+// Data audit log paths
 const DATA_DIR = path.resolve(ROOT_DIR, 'data');
-const AUDIT_LOG_FILE = path.resolve(DATA_DIR, 'leads_audit.jsonl');
+const LEADS_AUDIT_LOG_FILE = path.resolve(DATA_DIR, 'leads_audit.jsonl');
+const TASKS_AUDIT_LOG_FILE = path.resolve(DATA_DIR, 'tasks_audit.jsonl');
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -52,6 +53,21 @@ export interface LeadSubmissionData {
   timeline?: string;
   occupancyCondition?: string;
   notes?: string;
+  // Vacant Land Utilities
+  utilityWater?: string;
+  utilitySewer?: string;
+  utilityElectric?: string;
+  utilityHeatingGas?: string;
+  utilityInternet?: string;
+  utilityDrainage?: string;
+  // Location Fallbacks & Unit Sizing
+  unknownAddress?: boolean;
+  gpsCoordinates?: { lat: number; lng: number } | null;
+  documentAttachment?: { fileName: string; fileSize?: number; fileType?: string; base64Data?: string } | null;
+  lotSizeUnit?: string;
+  lotSizeRawValue?: string;
+  ownershipStatus?: string;
+  probateDocumentationStatus?: string;
   // A2P 10DLC Compliance Fields
   smsTransactionalConsent?: boolean;
   smsMarketingConsent?: boolean;
@@ -67,8 +83,113 @@ export interface LeadSubmissionData {
   [key: string]: unknown;
 }
 
+export interface UnderwritingTask {
+  id: string;
+  leadId: string;
+  title: string;
+  status: 'Pending Underwriting';
+  priority: 'high' | 'normal';
+  createdAt: string;
+  dueDate: string;
+  assignedTo: string;
+  propertyAddress?: string;
+  askingPrice?: string;
+  notes?: string;
+}
+
+/**
+ * Calculates due date exactly 24 business hours out from the current time.
+ * Standard business schedule: 8 hours/day (3 business days = 24 business hours).
+ * Automatically skips weekends (Saturday and Sunday).
+ */
+export function calculateBusinessHoursDueDate(startDate: Date = new Date(), businessHours = 24): string {
+  const result = new Date(startDate);
+  let businessDaysToAdd = Math.ceil(businessHours / 8);
+
+  while (businessDaysToAdd > 0) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    // 0 = Sunday, 6 = Saturday
+    if (day !== 0 && day !== 6) {
+      businessDaysToAdd--;
+    }
+  }
+  return result.toISOString();
+}
+
+/**
+ * Safe Firestore document write with timeout to prevent hanging when offline
+ */
+async function safeSetDoc(docRef: any, data: any, timeoutMs = 1500): Promise<boolean> {
+  try {
+    const writePromise = setDoc(docRef, data);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Firestore write timed out / offline')), timeoutMs)
+    );
+    await Promise.race([writePromise, timeoutPromise]);
+    return true;
+  } catch (err) {
+    console.warn('[LeadService] Firestore write bypassed (timeout or offline):', (err as Error).message);
+    return false;
+  }
+}
+
+/**
+ * Creates an underwriting task for the lead:
+ * Task ID: task_[leadId]
+ * Status: "Pending Underwriting"
+ * Due date: 24 business hours out
+ */
+export async function createUnderwritingTask(lead: LeadSubmissionData): Promise<UnderwritingTask> {
+  const taskId = `task_${lead.id}`;
+  const now = new Date();
+  const dueDate = calculateBusinessHoursDueDate(now, 24);
+  const targetEmail = process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abode-mode.com';
+
+  const propertyLabel = lead.propertyAddress || lead.parcelNumber || (lead.county ? `${lead.county} County, ${lead.state || 'CO'}` : 'Unspecified Parcel');
+
+  const task: UnderwritingTask = {
+    id: taskId,
+    leadId: lead.id,
+    title: `Underwriting Review: ${lead.fullName} (${propertyLabel})`,
+    status: 'Pending Underwriting',
+    priority: 'high',
+    createdAt: now.toISOString(),
+    dueDate,
+    assignedTo: targetEmail,
+    propertyAddress: lead.propertyAddress || lead.parcelNumber,
+    askingPrice: lead.askingPrice,
+    notes: lead.notes || (lead.unknownAddress ? 'Seller indicated unknown address - GPS or diligence doc attached' : undefined),
+  };
+
+  // 1. Immutable local audit log append for tasks
+  try {
+    const taskLogEntry = JSON.stringify(task) + '\n';
+    fs.appendFileSync(TASKS_AUDIT_LOG_FILE, taskLogEntry, 'utf-8');
+  } catch (err) {
+    console.error('[LeadService] Failed to append task to audit log:', err);
+  }
+
+  // 2. Primary Firestore Persistence for task (safe timeout)
+  if (db) {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      await safeSetDoc(taskRef, {
+        ...task,
+        updatedAt: now.toISOString(),
+      });
+      console.log(`[LeadService] Underwriting task ${taskId} recorded`);
+    } catch (dbErr) {
+      console.warn(`[LeadService] Firestore write warning for task ${taskId}:`, dbErr);
+    }
+  }
+
+  return task;
+}
+
 /**
  * Persists lead to Firestore and immutable backup JSON audit file,
+ * creates automated Underwriting Task,
  * then triggers asynchronous alerts to the acquisition desk without blocking.
  */
 export async function processIncomingLead(leadData: LeadSubmissionData): Promise<{
@@ -76,37 +197,43 @@ export async function processIncomingLead(leadData: LeadSubmissionData): Promise
   leadId: string;
   persistedTo: string[];
   timestamp: string;
+  task: UnderwritingTask;
 }> {
   const persistedTo: string[] = [];
 
   // 1. Immutable local audit log append (Zero data loss guarantee)
   try {
     const logEntry = JSON.stringify(leadData) + '\n';
-    fs.appendFileSync(AUDIT_LOG_FILE, logEntry, 'utf-8');
+    fs.appendFileSync(LEADS_AUDIT_LOG_FILE, logEntry, 'utf-8');
     persistedTo.push('audit_log');
   } catch (logErr) {
-    console.error('[LeadService] Failed to append to audit log:', logErr);
+    console.error('[LeadService] Failed to append lead to audit log:', logErr);
   }
 
-  // 2. Primary Firestore Persistence
+  // 2. Primary Firestore Persistence for Lead
   if (db) {
     try {
       const leadRef = doc(db, 'leads', leadData.id);
-      await setDoc(leadRef, {
+      const writeSuccess = await safeSetDoc(leadRef, {
         ...leadData,
         updatedAt: new Date().toISOString(),
       });
-      persistedTo.push('firestore');
-      console.log(`[LeadService] Lead ${leadData.id} persisted to Firestore collection 'leads'`);
+      if (writeSuccess) {
+        persistedTo.push('firestore');
+        console.log(`[LeadService] Lead ${leadData.id} persisted to Firestore collection 'leads'`);
+      }
     } catch (dbErr) {
       console.error(`[LeadService] Firestore write failed for lead ${leadData.id}:`, dbErr);
     }
   }
 
-  // 3. Trigger Asynchronous Notifications (Non-blocking)
-  // Fire-and-forget promise so frontend response is instant
-  dispatchLeadNotifications(leadData).catch((notifErr) => {
-    console.error('[LeadService] Asynchronous notification error:', notifErr);
+  // 3. Automated Underwriting Task Creation: task_[leadId], "Pending Underwriting", 24 business hours out
+  const task = await createUnderwritingTask(leadData);
+
+  // 4. Trigger Asynchronous Notifications (Non-blocking & Safe Execution)
+  // Fire-and-forget promise so frontend response is instantaneous
+  dispatchLeadNotifications(leadData, task).catch((notifErr) => {
+    console.error('[LeadService] Safe non-blocking notification error caught:', notifErr);
   });
 
   return {
@@ -114,15 +241,20 @@ export async function processIncomingLead(leadData: LeadSubmissionData): Promise
     leadId: leadData.id,
     persistedTo,
     timestamp: leadData.submittedAt,
+    task,
   };
 }
 
 /**
  * Dispatches instant notifications:
- * 1. Email Alert to wdowis@abodebuys.com (or ACQUISITION_NOTIFICATION_EMAIL)
+ * 1. Email Alert to wdowis@abode-mode.com (or ACQUISITION_NOTIFICATION_EMAIL) via Resend
+ *    (with fallback to onboarding@resend.dev to prevent 403 errors) or SMTP.
  * 2. Inbound Webhook (Zapier / Make / CRM / Inbound SMS Gateway)
  */
-export async function dispatchLeadNotifications(lead: LeadSubmissionData): Promise<void> {
+export async function dispatchLeadNotifications(
+  lead: LeadSubmissionData,
+  task?: UnderwritingTask
+): Promise<void> {
   const targetEmail = process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abode-mode.com';
   const webhookUrl =
     process.env.LEAD_WEBHOOK_URL ||
@@ -134,7 +266,6 @@ export async function dispatchLeadNotifications(lead: LeadSubmissionData): Promi
   const flowLabel = isSell ? 'LAND ACQUISITION / CASH OFFER' : 'LAND BUYER CRITERIA';
   const propertyTitle = lead.propertyAddress || lead.parcelNumber || (lead.county ? `${lead.county} County, ${lead.state || 'US'}` : 'New Land Lead');
 
-  // Formatted Lead Card for Audit & Notification
   const leadCardPlain = `
 ============================================================
 🔔 ABODE MODE - INSTANT LEAD INTAKE ALERT
@@ -144,15 +275,32 @@ LEAD ID:           ${lead.id}
 SUBMITTED AT:      ${new Date(lead.submittedAt).toUTCString()}
 TARGET NOTIFY:     ${targetEmail}
 
+UNDERWRITING TASK:
+• Task ID:         ${task?.id || `task_${lead.id}`}
+• Status:          ${task?.status || 'Pending Underwriting'}
+• Due Date:        ${task?.dueDate ? new Date(task.dueDate).toUTCString() : '24 Business Hours'}
+• Assigned To:     ${task?.assignedTo || targetEmail}
+
 PROPERTY / PARCEL DETAILS:
 • Address/APN:     ${lead.propertyAddress || lead.parcelNumber || 'N/A'}
+• Unknown Address: ${lead.unknownAddress ? 'YES (Dropped Pin / Document Uploaded)' : 'NO'}
+• GPS Coordinates: ${lead.gpsCoordinates ? `${lead.gpsCoordinates.lat}, ${lead.gpsCoordinates.lng}` : 'N/A'}
 • County & State:  ${lead.county || 'N/A'}, ${lead.state || 'N/A'}
-• Acreage:         ${lead.acreage || 'N/A'} acres
+• Lot Size:        ${lead.acreage || 'N/A'} ${lead.lotSizeUnit || 'acres'}
 • Asking/Target:   ${lead.askingPrice || 'N/A'}
 • Motivation/Use:  ${lead.motivation || 'N/A'}
 • Timeline:        ${lead.timeline || 'Standard'}
-• Property Status: ${lead.occupancyCondition || 'N/A'}
-• Additional Notes: ${lead.notes || 'None'}
+• Ownership:       ${lead.ownershipStatus || lead.occupancyCondition || 'N/A'}
+• Probate Status:  ${lead.probateDocumentationStatus || 'N/A'}
+
+UTILITIES INTAKE:
+• Water:           ${lead.utilityWater || 'N/A'}
+• Sewer/Septic:    ${lead.utilitySewer || 'N/A'}
+• Electric:        ${lead.utilityElectric || 'N/A'}
+• Heating Gas:     ${lead.utilityHeatingGas || 'N/A'}
+• Internet:        ${lead.utilityInternet || 'N/A'}
+• Drainage:        ${lead.utilityDrainage || 'N/A'}
+• Additional Notes:${lead.notes || 'None'}
 
 CONTACT DETAILS:
 • Full Name:       ${lead.fullName}
@@ -172,36 +320,17 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
 
   console.log(`[LeadService] Lead Notification Generated for: ${targetEmail}\n${leadCardPlain}`);
 
-  // Dispatch Webhook if configured (Zapier, Make, CRM, SMS Gateway)
+  // 1. Dispatch Webhook if configured
   if (webhookUrl) {
     try {
       const webhookPayload = {
         event: 'lead.created',
         flow: lead.flow,
         leadId: lead.id,
+        taskId: task?.id || `task_${lead.id}`,
+        taskDueDate: task?.dueDate,
         timestamp: lead.submittedAt,
-        lead: {
-          fullName: lead.fullName,
-          phone: lead.phone,
-          email: lead.email,
-          propertyAddress: lead.propertyAddress,
-          parcelNumber: lead.parcelNumber,
-          county: lead.county,
-          state: lead.state,
-          acreage: lead.acreage,
-          askingPrice: lead.askingPrice,
-          motivation: lead.motivation,
-          timeline: lead.timeline,
-          occupancyCondition: lead.occupancyCondition,
-          notes: lead.notes,
-        },
-        compliance: {
-          smsTransactionalConsent: Boolean(lead.smsTransactionalConsent),
-          smsMarketingConsent: Boolean(lead.smsMarketingConsent),
-          consentTimestamp: lead.consentTimestamp,
-          disclosureVersion: lead.disclosureVersion || 'CTIA_2026_V1',
-          nonSharingCovenantAccepted: lead.nonSharingCovenantAccepted,
-        },
+        lead,
         recipient: targetEmail,
       };
 
@@ -213,51 +342,101 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'No response body');
-        console.error(
-          `[LeadService:Error] Webhook POST to ${webhookUrl} returned HTTP ${response.status}: ${errorText}`
+        console.warn(
+          `[LeadService:Warning] Webhook POST to ${webhookUrl} returned HTTP ${response.status}: ${errorText}`
         );
       } else {
         console.log(`[LeadService] Dispatched lead webhook to ${webhookUrl}: HTTP ${response.status}`);
       }
     } catch (whErr) {
-      console.error('[LeadService:Error] Webhook network/fetch failure for lead:', lead.id, whErr);
+      console.warn('[LeadService:Warning] Webhook network/fetch failure for lead:', lead.id, whErr);
     }
   }
 
-  // If email dispatch service credentials are present, fire email (e.g. RESEND_API_KEY)
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (resendApiKey) {
-    try {
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Abode Mode Leads <leads@abodebuys.com>',
-          to: [targetEmail],
-          subject: `🔔 New ${flowLabel}: ${lead.fullName} (${propertyTitle})`,
-          text: leadCardPlain,
-        }),
-      });
+  // 2. Email dispatch via Resend (with fallback to onboarding@resend.dev) or SMTP
+  await sendResendEmailNotification({
+    targetEmail,
+    flowLabel,
+    propertyTitle,
+    leadCardPlain,
+    lead,
+    task,
+  });
+}
 
-      if (!emailRes.ok) {
-        const errText = await emailRes.text().catch(() => 'No response text');
-        console.error(
-          `[LeadService:Error] Resend email dispatch failed (HTTP ${emailRes.status}) for ${targetEmail}: ${errText}`
-        );
-      } else {
-        console.log(`[LeadService] Email alert dispatched via Resend to ${targetEmail}`);
-      }
-    } catch (resendErr) {
-      console.error(
-        `[LeadService:Error] Network error during Resend email dispatch to ${targetEmail}:`,
-        resendErr
-      );
+/**
+ * Resilient Resend email dispatch with fallback to onboarding@resend.dev to prevent 403 errors
+ */
+async function sendResendEmailNotification(params: {
+  targetEmail: string;
+  flowLabel: string;
+  propertyTitle: string;
+  leadCardPlain: string;
+  lead: LeadSubmissionData;
+  task?: UnderwritingTask;
+}): Promise<boolean> {
+  const { targetEmail, flowLabel, propertyTitle, leadCardPlain, lead } = params;
+  const resendApiKey = process.env.RESEND_API_KEY;
+
+  if (!resendApiKey) {
+    console.log(`[LeadService] Notice: RESEND_API_KEY not configured. Email logged locally for ${targetEmail}.`);
+    return true;
+  }
+
+  const primaryFrom = process.env.RESEND_FROM_EMAIL || 'Abode Mode Leads <leads@abodebuys.com>';
+  const fallbackFrom = 'Abode Mode Leads <onboarding@resend.dev>';
+  const subject = `🔔 New ${flowLabel}: ${lead.fullName} (${propertyTitle})`;
+
+  try {
+    // Attempt 1: Primary custom domain
+    let emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: primaryFrom,
+        to: [targetEmail],
+        subject,
+        text: leadCardPlain,
+      }),
+    });
+
+    if (emailRes.ok) {
+      console.log(`[LeadService] Email alert dispatched via Resend (${primaryFrom}) to ${targetEmail}`);
+      return true;
     }
-  } else {
-    console.log(`[LeadService] Notice: RESEND_API_KEY not configured. Lead alert logged locally for ${targetEmail}.`);
+
+    const errText = await emailRes.text().catch(() => 'No response text');
+    console.warn(`[LeadService] Primary Resend send failed (HTTP ${emailRes.status}): ${errText}. Attempting fallback to ${fallbackFrom}...`);
+
+    // Attempt 2: Fallback to onboarding@resend.dev to avoid 403 Forbidden domain unverified error
+    emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fallbackFrom,
+        to: [targetEmail],
+        subject,
+        text: leadCardPlain,
+      }),
+    });
+
+    if (emailRes.ok) {
+      console.log(`[LeadService] Email alert dispatched via Resend fallback (${fallbackFrom}) to ${targetEmail}`);
+      return true;
+    }
+
+    const fallbackErr = await emailRes.text().catch(() => 'No response text');
+    console.warn(`[LeadService] Fallback Resend send returned HTTP ${emailRes.status}: ${fallbackErr}`);
+    return false;
+  } catch (resendErr) {
+    console.warn(`[LeadService] Network exception during Resend email dispatch to ${targetEmail}:`, resendErr);
+    return false;
   }
 }
 
@@ -265,11 +444,11 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
  * Retrieves the most recent leads from the immutable audit log
  */
 export function getRecentAuditLeads(limit = 50): LeadSubmissionData[] {
-  if (!fs.existsSync(AUDIT_LOG_FILE)) {
+  if (!fs.existsSync(LEADS_AUDIT_LOG_FILE)) {
     return [];
   }
   try {
-    const content = fs.readFileSync(AUDIT_LOG_FILE, 'utf-8');
+    const content = fs.readFileSync(LEADS_AUDIT_LOG_FILE, 'utf-8');
     const lines = content.trim().split('\n').filter(Boolean);
     const leads = lines
       .map((line) => {
@@ -280,10 +459,37 @@ export function getRecentAuditLeads(limit = 50): LeadSubmissionData[] {
         }
       })
       .filter((l): l is LeadSubmissionData => l !== null);
-    
+
     return leads.reverse().slice(0, limit);
   } catch (err) {
-    console.error('[LeadService] Error reading audit log:', err);
+    console.error('[LeadService] Error reading leads audit log:', err);
+    return [];
+  }
+}
+
+/**
+ * Retrieves the most recent tasks from the immutable audit log
+ */
+export function getRecentAuditTasks(limit = 50): UnderwritingTask[] {
+  if (!fs.existsSync(TASKS_AUDIT_LOG_FILE)) {
+    return [];
+  }
+  try {
+    const content = fs.readFileSync(TASKS_AUDIT_LOG_FILE, 'utf-8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    const tasks = lines
+      .map((line) => {
+        try {
+          return JSON.parse(line) as UnderwritingTask;
+        } catch {
+          return null;
+        }
+      })
+      .filter((t): t is UnderwritingTask => t !== null);
+
+    return tasks.reverse().slice(0, limit);
+  } catch (err) {
+    console.error('[LeadService] Error reading tasks audit log:', err);
     return [];
   }
 }

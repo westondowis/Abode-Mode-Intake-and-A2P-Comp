@@ -59,6 +59,11 @@ service cloud.firestore {
       allow get, list, update, delete: if isAdmin();
     }
 
+    // Tasks Collection: Admin-only underwriting tasks
+    match /tasks/{taskId} {
+      allow read, write: if isAdmin();
+    }
+
     // Admins Collection: Controlled access for acquisition managers
     match /admins/{adminId} {
       allow read: if isSignedIn();

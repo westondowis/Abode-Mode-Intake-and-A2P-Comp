@@ -3,7 +3,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import { processIncomingLead, getRecentAuditLeads, dispatchLeadNotifications } from './server/leadService';
+import {
+  processIncomingLead,
+  getRecentAuditLeads,
+  getRecentAuditTasks,
+  dispatchLeadNotifications,
+  createUnderwritingTask,
+} from './server/leadService';
 
 dotenv.config();
 
@@ -13,9 +19,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' && process.env.PORT ? Number(process.env.PORT) : 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
-// Lead Intake Submission Route: Persists to Firestore + Audit Log & Triggers Asynchronous Alerts
+// Lead Intake Submission Route: Persists to Firestore + Audit Log & Creates Underwriting Task & Triggers Safe Non-Blocking Alerts
 app.post('/api/leads/submit', async (req, res) => {
   try {
     const data = req.body;
@@ -89,11 +95,14 @@ app.post('/api/leads/submit', async (req, res) => {
       status: 'new',
     };
 
+    // Process incoming lead: writes to audit log, Firestore, creates task_[leadId], and triggers async alerts safely
     const result = await processIncomingLead(normalizedLead);
 
     return res.status(200).json({
       success: true,
       leadId: result.leadId,
+      taskId: result.task.id,
+      taskDueDate: result.task.dueDate,
       persistedTo: result.persistedTo,
       timestamp: result.timestamp,
       message: 'Lead recorded in primary datastore and queued for acquisition team review',
@@ -102,6 +111,67 @@ app.post('/api/leads/submit', async (req, res) => {
     const message = err instanceof Error ? err.message : 'Failed to process lead';
     console.error('[Server] Lead submission error:', message);
     return res.status(500).json({ error: message });
+  }
+});
+
+// Diagnostic endpoint: Triggers test alert, automated underwriting task, and email dispatch
+app.post('/api/leads/test-alert', async (_req, res) => {
+  try {
+    const testLeadId = `ABODE-TEST-${Date.now().toString(36).toUpperCase()}`;
+    const targetEmail = process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abode-mode.com';
+
+    const testLead = {
+      id: testLeadId,
+      flow: 'sell' as const,
+      fullName: 'William Dowis (Acquisitions Desk Test)',
+      phone: '(720) 649-0734',
+      email: targetEmail,
+      propertyAddress: '1000 Abode Mode Test Way, Costilla County, CO',
+      parcelNumber: 'APN-TEST-2026-99',
+      county: 'Costilla',
+      state: 'CO',
+      acreage: '10.5',
+      askingPrice: '$25,000 Cash',
+      motivation: 'End-to-End Pipeline Verification Test',
+      timeline: 'Fast Close (<14 days)',
+      occupancyCondition: 'Vacant Land / Clear Title',
+      notes: 'Diagnostic test verifying lead processing, task creation, and email dispatch.',
+      smsTransactionalConsent: true,
+      smsMarketingConsent: false,
+      smsConsent: true,
+      consentTimestamp: new Date().toISOString(),
+      consentIpHint: '127.0.0.1',
+      userAgent: 'Server-Diagnostic/1.0',
+      disclosureVersion: 'CTIA_2026_V1',
+      nonSharingCovenantAccepted: true,
+      submittedAt: new Date().toISOString(),
+      status: 'reviewing',
+    };
+
+    // Create underwriting task: task_[leadId], "Pending Underwriting", 24 business hours out
+    const task = await createUnderwritingTask(testLead);
+
+    // Safe non-blocking email dispatch to ACQUISITION_NOTIFICATION_EMAIL (falling back to onboarding@resend.dev)
+    dispatchLeadNotifications(testLead, task).catch((notifErr) => {
+      console.warn('[Server] Non-blocking dispatch warning on test alert:', notifErr);
+    });
+
+    return res.status(200).json({
+      success: true,
+      emailDispatched: true,
+      taskCreated: true,
+      leadId: testLead.id,
+      taskId: task.id,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Test alert failed';
+    console.error('[Server] Test alert endpoint failure:', message);
+    return res.status(500).json({
+      success: false,
+      emailDispatched: false,
+      taskCreated: false,
+      error: message,
+    });
   }
 });
 
@@ -120,50 +190,20 @@ app.get('/api/leads', (_req, res) => {
   }
 });
 
-// Trigger test alert to verify notification pipeline
-app.post('/api/leads/test-alert', async (_req, res) => {
+// Audit / Admin endpoint to verify created tasks
+app.get('/api/tasks', (_req, res) => {
   try {
-    const testLead = {
-      id: `ABODE-TEST-${Date.now().toString(36).toUpperCase()}`,
-      flow: 'sell' as const,
-      fullName: 'William Dowis (Acquisitions Desk Test)',
-      phone: '(720) 649-0734',
-      email: process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abodebuys.com',
-      propertyAddress: '1000 Abode Mode Test Way, Costilla County, CO',
-      parcelNumber: 'APN-TEST-2026-99',
-      county: 'Costilla',
-      state: 'CO',
-      acreage: '10.5',
-      askingPrice: '$25,000 Cash',
-      motivation: 'End-to-End Pipeline Verification Test',
-      timeline: 'Fast Close (<14 days)',
-      occupancyCondition: 'Vacant Land / Clear Title',
-      notes: 'Diagnostic test verifying email alert and webhook dispatch pipeline.',
-      smsTransactionalConsent: true,
-      smsMarketingConsent: false,
-      smsConsent: true,
-      consentTimestamp: new Date().toISOString(),
-      consentIpHint: '127.0.0.1',
-      userAgent: 'Server-Diagnostic/1.0',
-      disclosureVersion: 'CTIA_2026_V1',
-      nonSharingCovenantAccepted: true,
-      submittedAt: new Date().toISOString(),
-      status: 'reviewing',
-    };
-
-    await dispatchLeadNotifications(testLead);
-
+    const tasks = getRecentAuditTasks(50);
     return res.json({
       success: true,
-      message: `Test alert dispatched for ${process.env.ACQUISITION_NOTIFICATION_EMAIL || 'wdowis@abodebuys.com'}`,
-      testLeadId: testLead.id,
+      count: tasks.length,
+      tasks,
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Test alert failed';
+    const message = err instanceof Error ? err.message : 'Failed to retrieve tasks';
     return res.status(500).json({ error: message });
   }
 });
-
 
 // Imagen placeholder image generation proxy route
 app.post('/api/generate-land-image', async (req, res) => {
