@@ -13,6 +13,8 @@ import { Footer } from './components/Footer';
 import { GoogleDriveVaultModal } from './components/GoogleDriveVaultModal';
 import { GoogleSheetsHubModal } from './components/GoogleSheetsHubModal';
 import { GmailHubModal } from './components/GmailHubModal';
+import { GoogleChatHubModal } from './components/GoogleChatHubModal';
+import { GoogleDocsHubModal } from './components/GoogleDocsHubModal';
 import { InteractiveLandMapModal, FeaturedParcel } from './components/InteractiveLandMapModal';
 import { testConnection } from './services/firebaseAuth';
 import { ThemeProvider } from './context/ThemeContext';
@@ -28,6 +30,8 @@ export default function App() {
   const [driveVaultOpen, setDriveVaultOpen] = useState(false);
   const [sheetsHubOpen, setSheetsHubOpen] = useState(false);
   const [gmailHubOpen, setGmailHubOpen] = useState(false);
+  const [chatHubOpen, setChatHubOpen] = useState(false);
+  const [docsHubOpen, setDocsHubOpen] = useState(false);
   const [landMapOpen, setLandMapOpen] = useState(false);
 
   // Validate Firestore server connection on startup
@@ -39,7 +43,7 @@ export default function App() {
     });
   }, []);
 
-  // Check URL pathname and hash (e.g. /privacy, /terms, #privacy, #terms, #drive-vault, #sheets)
+  // Check URL pathname and hash (e.g. /privacy, /terms, #privacy, #terms, #drive-vault, #sheets, #gmail, #chat, #docs)
   useEffect(() => {
     const handleNavigationRoute = () => {
       const hash = window.location.hash.replace('#', '').toLowerCase();
@@ -60,6 +64,10 @@ export default function App() {
         setSheetsHubOpen(true);
       } else if (hash === 'gmail' || hash === 'mail' || hash === 'inbox' || path === '/gmail' || path === '/inbox') {
         setGmailHubOpen(true);
+      } else if (hash === 'chat' || hash === 'chat-alerts' || path === '/chat') {
+        setChatHubOpen(true);
+      } else if (hash === 'docs' || hash === 'purchase-agreement' || hash === 'contracts' || path === '/docs') {
+        setDocsHubOpen(true);
       } else if (hash === 'map' || hash === 'land-map' || hash === 'parcels' || path === '/map') {
         setLandMapOpen(true);
       }
@@ -106,6 +114,8 @@ export default function App() {
         onOpenDriveVault={() => setDriveVaultOpen(true)}
         onOpenSheetsHub={() => setSheetsHubOpen(true)}
         onOpenGmailHub={() => setGmailHubOpen(true)}
+        onOpenChatHub={() => setChatHubOpen(true)}
+        onOpenDocsHub={() => setDocsHubOpen(true)}
         onOpenLandMap={() => setLandMapOpen(true)}
       />
 
@@ -144,6 +154,8 @@ export default function App() {
         onOpenDriveVault={() => setDriveVaultOpen(true)}
         onOpenSheetsHub={() => setSheetsHubOpen(true)}
         onOpenGmailHub={() => setGmailHubOpen(true)}
+        onOpenChatHub={() => setChatHubOpen(true)}
+        onOpenDocsHub={() => setDocsHubOpen(true)}
         onOpenLandMap={() => setLandMapOpen(true)}
       />
 
@@ -211,6 +223,18 @@ export default function App() {
       <GmailHubModal
         isOpen={gmailHubOpen}
         onClose={() => setGmailHubOpen(false)}
+      />
+
+      {/* Google Chat Team Notifications Modal */}
+      <GoogleChatHubModal
+        isOpen={chatHubOpen}
+        onClose={() => setChatHubOpen(false)}
+      />
+
+      {/* Google Docs Purchase Agreement Generator Modal */}
+      <GoogleDocsHubModal
+        isOpen={docsHubOpen}
+        onClose={() => setDocsHubOpen(false)}
       />
 
       {/* Google Maps Platform: Nationwide Interactive Land Map & Parcel Explorer */}

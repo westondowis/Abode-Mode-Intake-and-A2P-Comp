@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive, FileSpreadsheet, MapPin } from 'lucide-react';
+import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive, FileSpreadsheet, MapPin, MessageSquare, FileText } from 'lucide-react';
 import { BrandWordmark } from './brand/BrandWordmark';
 import { ENTITY_DETAILS } from '../data/policyData';
 import { getAcquisitionMailtoHref, ACQUISITION_EMAIL } from '../utils/contactEmail';
@@ -12,6 +12,8 @@ interface FooterProps {
   onOpenSheetsHub?: () => void;
   onOpenGmailHub?: () => void;
   onOpenLandMap?: () => void;
+  onOpenChatHub?: () => void;
+  onOpenDocsHub?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -22,6 +24,8 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenSheetsHub,
   onOpenGmailHub,
   onOpenLandMap,
+  onOpenChatHub,
+  onOpenDocsHub,
 }) => {
   const mailtoHref = getAcquisitionMailtoHref();
 
@@ -170,6 +174,28 @@ export const Footer: React.FC<FooterProps> = ({
                   >
                     <Mail className="w-3.5 h-3.5 text-red-400" />
                     <span>Gmail Acquisitions &amp; Inbox</span>
+                  </button>
+                </li>
+              )}
+              {onOpenChatHub && (
+                <li>
+                  <button
+                    onClick={onOpenChatHub}
+                    className="hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 text-teal-300"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Google Chat Notifications</span>
+                  </button>
+                </li>
+              )}
+              {onOpenDocsHub && (
+                <li>
+                  <button
+                    onClick={onOpenDocsHub}
+                    className="hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 text-blue-300"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Google Docs Contracts</span>
                   </button>
                 </li>
               )}

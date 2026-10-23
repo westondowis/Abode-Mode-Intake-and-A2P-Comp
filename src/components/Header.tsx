@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail, MessageSquare, MapPin } from 'lucide-react';
+import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail, MessageSquare, MapPin, FileText } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 import { ENTITY_DETAILS } from '../data/policyData';
 import { useTheme } from '../context/ThemeContext';
@@ -12,6 +12,8 @@ interface HeaderProps {
   onOpenSheetsHub: () => void;
   onOpenGmailHub?: () => void;
   onOpenLandMap?: () => void;
+  onOpenChatHub?: () => void;
+  onOpenDocsHub?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSheetsHub,
   onOpenGmailHub,
   onOpenLandMap,
+  onOpenChatHub,
+  onOpenDocsHub,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -242,6 +246,28 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <span>Land Map</span>
+              </button>
+            )}
+            {onOpenChatHub && (
+              <button
+                onClick={onOpenChatHub}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 dark:text-cyan-300 dark:bg-cyan-950/60 dark:hover:bg-cyan-900/60 dark:border-cyan-800/60 rounded-md transition-all cursor-pointer shadow-xs"
+                title="Google Chat Team Notifications"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
+                <span>Chat Alerts</span>
+              </button>
+            )}
+            {onOpenDocsHub && (
+              <button
+                onClick={onOpenDocsHub}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 dark:text-blue-300 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 dark:border-blue-800/60 rounded-md transition-all cursor-pointer shadow-xs"
+                title="Google Docs Purchase Agreement Generator"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Docs Contracts</span>
               </button>
             )}
             <button

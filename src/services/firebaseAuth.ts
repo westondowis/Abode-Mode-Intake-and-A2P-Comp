@@ -116,6 +116,11 @@ export const WORKSPACE_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/gmail.settings.basic',
   'https://www.googleapis.com/auth/gmail.settings.sharing',
+  'https://www.googleapis.com/auth/chat.messages',
+  'https://www.googleapis.com/auth/chat.spaces',
+  'https://www.googleapis.com/auth/chat.spaces.readonly',
+  'https://www.googleapis.com/auth/documents',
+  'https://www.googleapis.com/auth/documents.readonly',
 ];
 
 const provider = new GoogleAuthProvider();
