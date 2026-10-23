@@ -1,6 +1,6 @@
 {
   "name": "Abode Mode - Land Acquisition & Sales Platform",
-  "description": "Modern real estate platform to buy and sell land across the U.S. with instant property valuation, interactive parcel mapping, Google Sheets pipeline ledgers, Google Drive diligence vault, and CTIA-compliant A2P 10DLC consent architecture.",
+  "description": "Modern real estate platform to buy and sell land across the U.S. with Google Maps Platform interactive parcel explorer, Firebase Cloud Firestore pipeline, Gmail inbox and acquisitions outreach, Google Sheets pipeline ledgers, Google Drive diligence vault, and CTIA-compliant A2P 10DLC consent architecture.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

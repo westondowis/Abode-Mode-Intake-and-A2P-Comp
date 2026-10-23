@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   MapPin,
@@ -9,10 +9,17 @@ import {
   Search,
   Crosshair,
   Globe,
-  Mountain,
-  Navigation,
-  Info
+  Layers,
+  Info,
+  AlertTriangle,
 } from 'lucide-react';
+import {
+  APIProvider,
+  Map,
+  AdvancedMarker,
+  Pin,
+  MapMouseEvent,
+} from '@vis.gl/react-google-maps';
 
 interface ParcelPinDropModalProps {
   isOpen: boolean;
@@ -29,243 +36,153 @@ export const ParcelPinDropModal: React.FC<ParcelPinDropModalProps> = ({
   initialCoordinates,
   initialSearchQuery = '',
 }) => {
-  // Center defaults: USA center or initial coordinates
-  const [centerLat, setCenterLat] = useState<number>(initialCoordinates?.lat ?? 37.0902);
-  const [centerLng, setCenterLng] = useState<number>(initialCoordinates?.lng ?? -95.7129);
-  const [pinnedLat, setPinnedLat] = useState<number | null>(initialCoordinates?.lat ?? null);
-  const [pinnedLng, setPinnedLng] = useState<number | null>(initialCoordinates?.lng ?? null);
-  const [zoomLevel, setZoomLevel] = useState<number>(initialCoordinates ? 14 : 5);
-  const [mapType, setMapType] = useState<'satellite' | 'terrain' | 'roadmap'>('satellite');
+  // Center defaults: USA geographic center or provided initial coordinates
+  const [center, setCenter] = useState<{ lat: number; lng: number }>({
+    lat: initialCoordinates?.lat ?? 31.9686, // Default Texas/Southern land corridor
+    lng: initialCoordinates?.lng ?? -99.9018,
+  });
+  const [pinnedPosition, setPinnedPosition] = useState<{ lat: number; lng: number } | null>(
+    initialCoordinates ?? null
+  );
+  const [zoom, setZoom] = useState<number>(initialCoordinates ? 15 : 6);
+  const [mapTypeId, setMapTypeId] = useState<string>('hybrid');
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const googleMapRef = useRef<HTMLDivElement>(null);
-  const googleMapInstanceRef = useRef<any>(null);
-  const googleMarkerRef = useRef<any>(null);
-  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
-  // Sync initial coordinates when modal opens
+  // Sync state when opened
   useEffect(() => {
     if (isOpen) {
       if (initialCoordinates) {
-        setCenterLat(initialCoordinates.lat);
-        setCenterLng(initialCoordinates.lng);
-        setPinnedLat(initialCoordinates.lat);
-        setPinnedLng(initialCoordinates.lng);
-        setZoomLevel(15);
+        setCenter(initialCoordinates);
+        setPinnedPosition(initialCoordinates);
+        setZoom(16);
       }
       if (initialSearchQuery) {
         setSearchQuery(initialSearchQuery);
       }
+      setErrorMessage(null);
     }
   }, [isOpen, initialCoordinates, initialSearchQuery]);
 
-  // Attempt to load Google Maps JS API if VITE_GOOGLE_MAPS_API_KEY is available
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || apiKey === 'YOUR_KEY_HERE') {
-      return;
+  // Handle map click to drop or move pin
+  const handleMapClick = useCallback((e: MapMouseEvent) => {
+    if (e.detail?.latLng) {
+      const newPos = {
+        lat: Number(e.detail.latLng.lat.toFixed(6)),
+        lng: Number(e.detail.latLng.lng.toFixed(6)),
+      };
+      setPinnedPosition(newPos);
+      setErrorMessage(null);
     }
+  }, []);
 
-    if ((window as any).google && (window as any).google.maps) {
-      setGoogleMapsLoaded(true);
-      return;
+  // Handle marker drag end
+  const handleMarkerDragEnd = useCallback((e: any) => {
+    if (e.latLng) {
+      const newPos = {
+        lat: Number(e.latLng.lat().toFixed(6)),
+        lng: Number(e.latLng.lng().toFixed(6)),
+      };
+      setPinnedPosition(newPos);
+      setErrorMessage(null);
     }
+  }, []);
 
-    const scriptId = 'google-maps-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => setGoogleMapsLoaded(true);
-      document.head.appendChild(script);
-    }
-  }, [isOpen]);
+  // Search address, county, or APN description using Google Geocoding API REST client-safe wrapper
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim() || !apiKey) return;
 
-  // Initialize or update Google Map instance if loaded
-  useEffect(() => {
-    if (!googleMapsLoaded || !googleMapRef.current || !isOpen) return;
+    setIsGeocoding(true);
+    setErrorMessage(null);
 
-    const google = (window as any).google;
-    if (!google || !google.maps) return;
-
-    const initialPos = {
-      lat: pinnedLat ?? centerLat,
-      lng: pinnedLng ?? centerLng,
-    };
-
-    if (!googleMapInstanceRef.current) {
-      const map = new google.maps.Map(googleMapRef.current, {
-        center: initialPos,
-        zoom: zoomLevel,
-        mapTypeId: mapType === 'satellite' ? google.maps.MapTypeId.HYBRID : google.maps.MapTypeId.ROADMAP,
-        disableDefaultUI: false,
-        zoomControl: true,
-        streetViewControl: false,
-        fullscreenControl: false,
-      });
-
-      googleMapInstanceRef.current = map;
-
-      // Add click listener to drop/move pin
-      map.addListener('click', (e: any) => {
-        if (!e.latLng) return;
-        const newLat = e.latLng.lat();
-        const newLng = e.latLng.lng();
-        setPinnedLat(newLat);
-        setPinnedLng(newLng);
-
-        if (googleMarkerRef.current) {
-          googleMarkerRef.current.setPosition(e.latLng);
-        } else {
-          googleMarkerRef.current = new google.maps.Marker({
-            position: e.latLng,
-            map: map,
-            animation: google.maps.Animation.DROP,
-            title: 'Selected Parcel Location',
-          });
-        }
-      });
-
-      if (pinnedLat !== null && pinnedLng !== null) {
-        googleMarkerRef.current = new google.maps.Marker({
-          position: initialPos,
-          map: map,
-          title: 'Selected Parcel Location',
+    try {
+      // Use Google Geocoding API via client fetch or window.google.maps.Geocoder
+      if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        geocoder.geocode({ address: searchQuery }, (results: any, status: any) => {
+          setIsGeocoding(false);
+          if (status === 'OK' && results && results[0]?.geometry?.location) {
+            const loc = results[0].geometry.location;
+            const newCenter = {
+              lat: Number(loc.lat().toFixed(6)),
+              lng: Number(loc.lng().toFixed(6)),
+            };
+            setCenter(newCenter);
+            setPinnedPosition(newCenter);
+            setZoom(14);
+          } else {
+            setErrorMessage(`Could not find "${searchQuery}". Please refine county, city, or state.`);
+          }
         });
+      } else {
+        // Direct REST fallback
+        const res = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+            searchQuery
+          )}&key=${apiKey}`
+        );
+        const data = await res.json();
+        setIsGeocoding(false);
+        if (data.status === 'OK' && data.results && data.results[0]?.geometry?.location) {
+          const loc = data.results[0].geometry.location;
+          const newCenter = {
+            lat: Number(loc.lat.toFixed(6)),
+            lng: Number(loc.lng.toFixed(6)),
+          };
+          setCenter(newCenter);
+          setPinnedPosition(newCenter);
+          setZoom(14);
+        } else {
+          setErrorMessage(`Location not found. Try searching by County & State.`);
+        }
       }
-    } else {
-      googleMapInstanceRef.current.setMapTypeId(
-        mapType === 'satellite' ? google.maps.MapTypeId.HYBRID : google.maps.MapTypeId.ROADMAP
-      );
+    } catch (err) {
+      setIsGeocoding(false);
+      setErrorMessage('Search error. You can manually pan the map and click to pin.');
     }
-  }, [googleMapsLoaded, isOpen, mapType]);
-
-  // Handle simulated/canvas interactive map click when Google Maps JS is not loaded
-  const handleSimulatedMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!mapContainerRef.current) return;
-    const rect = mapContainerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Convert pixel offset to coordinate delta based on zoom
-    const normalizedX = (x / rect.width - 0.5) * 2;
-    const normalizedY = (y / rect.height - 0.5) * 2;
-
-    const degSpanLat = 180 / Math.pow(2, zoomLevel - 2);
-    const degSpanLng = 360 / Math.pow(2, zoomLevel - 2);
-
-    const newLat = Number((centerLat - normalizedY * (degSpanLat / 4)).toFixed(6));
-    const newLng = Number((centerLng + normalizedX * (degSpanLng / 4)).toFixed(6));
-
-    setPinnedLat(newLat);
-    setPinnedLng(newLng);
   };
 
-  const handleSearchNearby = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-
-    // Try Google Maps Geocoder if available
-    const google = (window as any).google;
-    if (google && google.maps && google.maps.Geocoder) {
-      const geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ address: searchQuery }, (results: any, status: any) => {
-        setIsSearching(false);
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          const lat = loc.lat();
-          const lng = loc.lng();
-          setCenterLat(lat);
-          setCenterLng(lng);
-          setPinnedLat(lat);
-          setPinnedLng(lng);
-          setZoomLevel(15);
-          if (googleMapInstanceRef.current) {
-            googleMapInstanceRef.current.setCenter(loc);
-            googleMapInstanceRef.current.setZoom(15);
-            if (googleMarkerRef.current) {
-              googleMarkerRef.current.setPosition(loc);
-            } else {
-              googleMarkerRef.current = new google.maps.Marker({
-                position: loc,
-                map: googleMapInstanceRef.current,
-                animation: google.maps.Animation.DROP,
-              });
-            }
-          }
-        }
-      });
+  // Center on current device location
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorMessage('Geolocation is not supported by your browser.');
       return;
     }
 
-    // Fallback coordinate parser (e.g. user pasted "37.284912, -105.419204")
-    const coordsMatch = searchQuery.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
-    if (coordsMatch) {
-      const parsedLat = parseFloat(coordsMatch[1]);
-      const parsedLng = parseFloat(coordsMatch[2]);
-      if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-        setCenterLat(parsedLat);
-        setCenterLng(parsedLng);
-        setPinnedLat(parsedLat);
-        setPinnedLng(parsedLng);
-        setZoomLevel(15);
-        setIsSearching(false);
-        return;
-      }
-    }
-
-    // Fallback: Default popular land counties
-    const lower = searchQuery.toLowerCase();
-    if (lower.includes('costilla') || lower.includes('colorado')) {
-      setCenterLat(37.4912);
-      setCenterLng(-105.2931);
-      setPinnedLat(37.4912);
-      setPinnedLng(-105.2931);
-      setZoomLevel(14);
-    } else if (lower.includes('mohave') || lower.includes('arizona')) {
-      setCenterLat(35.2223);
-      setCenterLng(-114.2155);
-      setPinnedLat(35.2223);
-      setPinnedLng(-114.2155);
-      setZoomLevel(14);
-    } else if (lower.includes('elko') || lower.includes('nevada')) {
-      setCenterLat(40.8324);
-      setCenterLng(-115.7631);
-      setPinnedLat(40.8324);
-      setPinnedLng(-115.7631);
-      setZoomLevel(14);
-    } else if (lower.includes('texas') || lower.includes('hudspeth')) {
-      setCenterLat(31.3533);
-      setCenterLng(-105.3789);
-      setPinnedLat(31.3533);
-      setPinnedLng(-105.3789);
-      setZoomLevel(14);
-    } else if (lower.includes('florida')) {
-      setCenterLat(28.3772);
-      setCenterLng(-81.5707);
-      setPinnedLat(28.3772);
-      setPinnedLng(-81.5707);
-      setZoomLevel(14);
-    }
-    setIsSearching(false);
+    setIsGeocoding(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsGeocoding(false);
+        const userLoc = {
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        };
+        setCenter(userLoc);
+        setPinnedPosition(userLoc);
+        setZoom(16);
+      },
+      (err) => {
+        setIsGeocoding(false);
+        setErrorMessage('Location permission denied or unavailable.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   const handleConfirm = () => {
-    if (pinnedLat === null || pinnedLng === null) {
+    if (!pinnedPosition) {
+      setErrorMessage('Please click on the map to drop a pin on your parcel.');
       return;
     }
-    const formatted = `${pinnedLat.toFixed(6)}, ${pinnedLng.toFixed(6)}`;
+
+    const formatted = `${pinnedPosition.lat.toFixed(6)}, ${pinnedPosition.lng.toFixed(6)}`;
     onConfirm({
-      lat: Number(pinnedLat.toFixed(6)),
-      lng: Number(pinnedLng.toFixed(6)),
+      lat: pinnedPosition.lat,
+      lng: pinnedPosition.lng,
       formatted,
     });
     onClose();
@@ -274,234 +191,234 @@ export const ParcelPinDropModal: React.FC<ParcelPinDropModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#00171C] border border-slate-300 dark:border-[#0A4251] rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl h-[90vh] max-h-[800px] bg-white dark:bg-[#06141a] border border-slate-200 dark:border-cyan-900/60 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-800 dark:text-slate-100 transition-colors">
         
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-cyan-950 flex items-center justify-between bg-slate-50 dark:bg-[#061116]">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
-              <MapPin className="w-5 h-5" />
+        {/* HEADER BAR */}
+        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-cyan-950/80 bg-slate-50/80 dark:bg-[#030d12] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-teal-500/20 border border-amber-500/40 flex items-center justify-center shadow-inner">
+              <MapPin className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white font-serif">
-                Interactive Parcel Pin-Drop Locator
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold cinzel-text text-slate-900 dark:text-white">
+                  Interactive Parcel Pin-Drop
+                </h3>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/40">
+                  Google Maps Platform
+                </span>
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Click anywhere on the map to drop a pin on your parcel. Coordinates are captured to 6 decimal places.
+                Click anywhere on the satellite view to drop or drag your parcel pin to output exact GPS coordinates
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            type="button"
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Close map modal"
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close pin-drop modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Toolbar: Search, Layers, and Controls */}
-        <div className="p-3 bg-white dark:bg-[#041014] border-b border-slate-200 dark:border-[#0A4251] flex flex-wrap items-center justify-between gap-3 text-xs">
-          <form onSubmit={handleSearchNearby} className="flex-1 min-w-[240px] flex items-center gap-2">
+        {/* SEARCH & CONTROLS TOOLBAR */}
+        <div className="p-3 bg-slate-100/90 dark:bg-[#040e13] border-b border-slate-200 dark:border-cyan-950/60 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          
+          {/* Address / County Search Input */}
+          <form onSubmit={handleSearch} className="flex-1 min-w-[260px] flex items-center gap-1.5">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search nearby town, county, landmark, or lat/lng..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="Search County, State, or nearest street..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder-slate-400"
               />
             </div>
             <button
               type="submit"
-              disabled={isSearching}
-              className="px-3 py-2 bg-[#0A4251] hover:bg-[#00171C] text-white font-bold rounded-lg transition-colors cursor-pointer"
+              disabled={isGeocoding}
+              className="px-3 py-1.5 bg-[#0A4251] hover:bg-[#00171C] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
             >
-              {isSearching ? 'Locating...' : 'Locate'}
+              {isGeocoding ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>Fly to Area</span>
+              )}
             </button>
           </form>
 
-          {/* Layer switcher */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+          {/* Map Controls */}
+          <div className="flex items-center gap-1.5">
+            {/* Map Type Toggle */}
+            <div className="flex items-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setMapTypeId('hybrid')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  mapTypeId === 'hybrid'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950'
+                }`}
+                title="Satellite Hybrid View"
+              >
+                Satellite
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapTypeId('roadmap')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  mapTypeId === 'roadmap'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950'
+                }`}
+                title="Roadmap View"
+              >
+                Roadmap
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapTypeId('terrain')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  mapTypeId === 'terrain'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-950'
+                }`}
+                title="Topographical Terrain View"
+              >
+                Terrain
+              </button>
+            </div>
+
+            {/* Locate Me Button */}
             <button
               type="button"
-              onClick={() => setMapType('satellite')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer ${
-                mapType === 'satellite'
-                  ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
+              onClick={handleUseCurrentLocation}
+              disabled={isGeocoding}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
+              title="Center on my current GPS location"
             >
-              <Globe className="w-3.5 h-3.5" />
-              <span>Satellite Aerial</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMapType('roadmap')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer ${
-                mapType === 'roadmap'
-                  ? 'bg-amber-400 text-slate-950 font-bold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
-              }`}
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>Road &amp; Boundary</span>
+              <Crosshair className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400" />
             </button>
           </div>
+
         </div>
 
-        {/* Map Viewport Area */}
-        <div className="flex-1 relative bg-slate-900 overflow-hidden select-none">
-          {/* Real Google Map Container (if API Key is configured) */}
-          <div
-            ref={googleMapRef}
-            className={`w-full h-full ${googleMapsLoaded ? 'block' : 'hidden'}`}
-          />
-
-          {/* High-Fidelity Satellite/Topo Visual Canvas Fallback */}
-          {!googleMapsLoaded && (
-            <div
-              ref={mapContainerRef}
-              onClick={handleSimulatedMapClick}
-              className="w-full h-full relative cursor-crosshair overflow-hidden group"
-              style={{
-                backgroundImage:
-                  mapType === 'satellite'
-                    ? 'radial-gradient(circle at 50% 50%, #1a2f1c 0%, #0d1a10 70%, #060b07 100%)'
-                    : 'radial-gradient(circle at 50% 50%, #20353c 0%, #0c1a20 70%, #060f14 100%)',
-              }}
+        {/* ERROR / NOTICE BANNER */}
+        {errorMessage && (
+          <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/60 border-b border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              className="text-xs font-bold hover:underline cursor-pointer"
             >
-              {/* Satellite High-Res Topographic Grid Pattern */}
-              <div
-                className="absolute inset-0 opacity-40 pointer-events-none"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, rgba(242, 200, 100, 0.15) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(242, 200, 100, 0.15) 1px, transparent 1px)
-                  `,
-                  backgroundSize: `${30 * (zoomLevel / 8)}px ${30 * (zoomLevel / 8)}px`,
-                }}
-              />
+              Dismiss
+            </button>
+          </div>
+        )}
 
-              {/* Geographic Terrain Contours */}
-              <svg className="absolute inset-0 w-full h-full opacity-25 pointer-events-none">
-                <path
-                  d="M0,150 Q200,80 400,160 T800,140 T1200,190"
-                  fill="none"
-                  stroke="#2dd4bf"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M0,250 Q250,200 500,270 T1000,240 T1400,290"
-                  fill="none"
-                  stroke="#2dd4bf"
-                  strokeWidth="1"
-                />
-                <path
-                  d="M0,380 Q300,320 600,400 T1100,360 T1500,420"
-                  fill="none"
-                  stroke="#2dd4bf"
-                  strokeWidth="1.5"
-                />
-              </svg>
-
-              {/* Simulated Water Drainage / Creek */}
-              <svg className="absolute inset-0 w-full h-full opacity-35 pointer-events-none">
-                <path
-                  d="M 120,0 C 240,180 320,290 480,420 S 720,600 890,750"
-                  fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth="3.5"
-                  strokeDasharray="6 2"
-                />
-              </svg>
-
-              {/* Crosshair Center Reticle */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                <Crosshair className="w-32 h-32 text-amber-400 stroke-1" />
-              </div>
-
-              {/* Placed Pin Marker */}
-              {pinnedLat !== null && pinnedLng !== null && (
-                <div
-                  className="absolute pointer-events-none transform -translate-x-1/2 -translate-y-full transition-all duration-150 animate-bounce"
-                  style={{
-                    left: `${50 + ((pinnedLng - centerLng) / (360 / Math.pow(2, zoomLevel - 2))) * 200}%`,
-                    top: `${50 - ((pinnedLat - centerLat) / (180 / Math.pow(2, zoomLevel - 2))) * 200}%`,
-                  }}
-                >
-                  <div className="flex flex-col items-center">
-                    <div className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded text-[11px] font-mono font-bold shadow-md whitespace-nowrap mb-1">
-                      {pinnedLat.toFixed(6)}, {pinnedLng.toFixed(6)}
-                    </div>
-                    <MapPin className="w-9 h-9 text-rose-500 fill-rose-500 filter drop-shadow-lg" />
-                  </div>
-                </div>
-              )}
-
-              {/* Helper Toast in Canvas */}
-              <div className="absolute top-4 left-4 bg-slate-900/85 backdrop-blur border border-cyan-800/40 text-slate-200 text-xs px-3.5 py-2 rounded-xl pointer-events-none flex items-center gap-2 shadow-lg">
-                <Info className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                <span>Click anywhere on the satellite landscape to drop your property pin</span>
-              </div>
+        {/* MAP CANVAS VIEWPORT */}
+        <div className="flex-1 relative w-full h-full min-h-[350px] bg-slate-900 overflow-hidden">
+          {apiKey ? (
+            <APIProvider apiKey={apiKey} libraries={['places', 'marker']}>
+              <Map
+                mapId="DEMO_MAP_ID"
+                internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                center={center}
+                zoom={zoom}
+                mapTypeId={mapTypeId}
+                onCenterChanged={(e) => setCenter(e.detail.center)}
+                onZoomChanged={(e) => setZoom(e.detail.zoom)}
+                onClick={handleMapClick}
+                gestureHandling="greedy"
+                disableDefaultUI={false}
+                zoomControl={true}
+                scaleControl={true}
+                className="w-full h-full"
+                style={{ width: '100%', height: '100%' }}
+              >
+                {pinnedPosition && (
+                  <AdvancedMarker
+                    position={pinnedPosition}
+                    draggable={true}
+                    onDragEnd={handleMarkerDragEnd}
+                    title="Target Land Parcel"
+                  >
+                    <Pin
+                      background="#F59E0B"
+                      glyphColor="#00171C"
+                      borderColor="#FFFFFF"
+                      scale={1.2}
+                    />
+                  </AdvancedMarker>
+                )}
+              </Map>
+            </APIProvider>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
+              <Globe className="w-12 h-12 text-slate-600 mb-3" />
+              <p className="text-sm font-semibold text-slate-200">
+                Google Maps Platform API Key Required
+              </p>
+              <p className="text-xs text-slate-400 max-w-md mt-1">
+                Please ensure VITE_GOOGLE_MAPS_API_KEY is configured in your environment to load the high-resolution satellite imagery.
+              </p>
             </div>
           )}
 
-          {/* Floating Map Zoom Controls */}
-          <div className="absolute right-4 bottom-4 flex flex-col gap-1.5 z-10">
-            <button
-              type="button"
-              onClick={() => setZoomLevel((z) => Math.min(z + 1, 19))}
-              className="w-9 h-9 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoomLevel((z) => Math.max(z - 1, 3))}
-              className="w-9 h-9 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white rounded-lg flex items-center justify-center shadow-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
+          {/* Floating Instructions Helper Overlay */}
+          <div className="absolute top-3 left-3 z-10 pointer-events-none hidden sm:block">
+            <div className="bg-slate-950/80 backdrop-blur-md border border-slate-700/60 text-white px-3 py-2 rounded-xl text-[11px] shadow-lg flex items-center gap-2">
+              <Info className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Click anywhere on the terrain to place or drag your parcel pin</span>
+            </div>
           </div>
         </div>
 
-        {/* Modal Footer: Coordinate Readout & Confirmation */}
-        <div className="p-4 bg-slate-50 dark:bg-[#061116] border-t border-slate-200 dark:border-cyan-950 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* FOOTER BAR WITH COORDINATES AND CONFIRM BUTTON */}
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-cyan-950/80 bg-slate-50/90 dark:bg-[#030d12] flex flex-wrap items-center justify-between gap-3 shrink-0">
+          
+          {/* Coordinates Display */}
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">Captured GPS Coordinates:</span>
-            {pinnedLat !== null && pinnedLng !== null ? (
-              <span className="font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded">
-                Latitude: {pinnedLat.toFixed(6)} | Longitude: {pinnedLng.toFixed(6)}
+            <span className="font-semibold text-slate-500 dark:text-slate-400">
+              Pinned GPS Coordinates:
+            </span>
+            {pinnedPosition ? (
+              <span className="font-mono font-bold text-slate-900 dark:text-amber-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-800">
+                {pinnedPosition.lat.toFixed(6)}, {pinnedPosition.lng.toFixed(6)}
               </span>
             ) : (
-              <span className="text-slate-400 italic">No pin placed yet. Click on the map above.</span>
+              <span className="text-slate-400 italic">No pin placed yet</span>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 sm:flex-none px-4 py-2 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
-              disabled={pinnedLat === null || pinnedLng === null}
               onClick={handleConfirm}
-              className="flex-1 sm:flex-none px-6 py-2 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all cursor-pointer"
+              disabled={!pinnedPosition}
+              className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center gap-2 cursor-pointer font-serif"
             >
               <Check className="w-4 h-4" />
-              <span>Confirm Parcel Pin</span>
+              <span>Confirm Parcel Coordinates</span>
             </button>
           </div>
+
         </div>
 
       </div>

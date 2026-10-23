@@ -12,6 +12,9 @@ import { CookieBanner } from './components/CookieBanner';
 import { Footer } from './components/Footer';
 import { GoogleDriveVaultModal } from './components/GoogleDriveVaultModal';
 import { GoogleSheetsHubModal } from './components/GoogleSheetsHubModal';
+import { GmailHubModal } from './components/GmailHubModal';
+import { InteractiveLandMapModal, FeaturedParcel } from './components/InteractiveLandMapModal';
+import { testConnection } from './services/firebaseAuth';
 import { ThemeProvider } from './context/ThemeContext';
 import { X } from 'lucide-react';
 
@@ -24,6 +27,17 @@ export default function App() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [driveVaultOpen, setDriveVaultOpen] = useState(false);
   const [sheetsHubOpen, setSheetsHubOpen] = useState(false);
+  const [gmailHubOpen, setGmailHubOpen] = useState(false);
+  const [landMapOpen, setLandMapOpen] = useState(false);
+
+  // Validate Firestore server connection on startup
+  useEffect(() => {
+    testConnection().then((connected) => {
+      if (connected) {
+        console.log('[Firebase] Connected successfully to Cloud Firestore.');
+      }
+    });
+  }, []);
 
   // Check URL pathname and hash (e.g. /privacy, /terms, #privacy, #terms, #drive-vault, #sheets)
   useEffect(() => {
@@ -44,6 +58,10 @@ export default function App() {
         setDriveVaultOpen(true);
       } else if (hash === 'sheets' || hash === 'sheets-sync' || hash === 'sheets-hub' || path === '/sheets') {
         setSheetsHubOpen(true);
+      } else if (hash === 'gmail' || hash === 'mail' || hash === 'inbox' || path === '/gmail' || path === '/inbox') {
+        setGmailHubOpen(true);
+      } else if (hash === 'map' || hash === 'land-map' || hash === 'parcels' || path === '/map') {
+        setLandMapOpen(true);
       }
     };
 
@@ -87,6 +105,8 @@ export default function App() {
         onSelectFlow={handleSelectFlow}
         onOpenDriveVault={() => setDriveVaultOpen(true)}
         onOpenSheetsHub={() => setSheetsHubOpen(true)}
+        onOpenGmailHub={() => setGmailHubOpen(true)}
+        onOpenLandMap={() => setLandMapOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -111,7 +131,7 @@ export default function App() {
         {/* 3-Step Transparent Overview for Sellers */}
         <HowItWorks onStartOffer={() => handleSelectFlow('sell')} />
 
-        {/* Corporate Profile: About Abode Mode */}
+        {/* Corporate Profile: About Us */}
         <AboutUs />
 
       </main>
@@ -123,6 +143,8 @@ export default function App() {
         onOpenShareModal={() => setShareModalOpen(true)}
         onOpenDriveVault={() => setDriveVaultOpen(true)}
         onOpenSheetsHub={() => setSheetsHubOpen(true)}
+        onOpenGmailHub={() => setGmailHubOpen(true)}
+        onOpenLandMap={() => setLandMapOpen(true)}
       />
 
       {/* Isolated Full-Page Privacy Policy Overlay (TCR A2P 10DLC Compliant) */}
@@ -183,6 +205,21 @@ export default function App() {
       <GoogleSheetsHubModal
         isOpen={sheetsHubOpen}
         onClose={() => setSheetsHubOpen(false)}
+      />
+
+      {/* Gmail Acquisitions & Seller Inbox Hub Modal */}
+      <GmailHubModal
+        isOpen={gmailHubOpen}
+        onClose={() => setGmailHubOpen(false)}
+      />
+
+      {/* Google Maps Platform: Nationwide Interactive Land Map & Parcel Explorer */}
+      <InteractiveLandMapModal
+        isOpen={landMapOpen}
+        onClose={() => setLandMapOpen(false)}
+        onSelectParcelForOffer={(parcel) => {
+          handleSelectFlow('sell');
+        }}
       />
 
       {/* Cookie & Session Security Notice */}

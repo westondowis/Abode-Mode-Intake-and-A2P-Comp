@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive, FileSpreadsheet } from 'lucide-react';
+import { Phone, Mail, ArrowUp, Share2, Lock, Globe, HardDrive, FileSpreadsheet, MapPin } from 'lucide-react';
 import { BrandWordmark } from './brand/BrandWordmark';
 import { ENTITY_DETAILS } from '../data/policyData';
 import { getAcquisitionMailtoHref, ACQUISITION_EMAIL } from '../utils/contactEmail';
@@ -10,6 +10,8 @@ interface FooterProps {
   onOpenShareModal: () => void;
   onOpenDriveVault?: () => void;
   onOpenSheetsHub?: () => void;
+  onOpenGmailHub?: () => void;
+  onOpenLandMap?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -18,6 +20,8 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenShareModal,
   onOpenDriveVault,
   onOpenSheetsHub,
+  onOpenGmailHub,
+  onOpenLandMap,
 }) => {
   const mailtoHref = getAcquisitionMailtoHref();
 
@@ -155,6 +159,28 @@ export const Footer: React.FC<FooterProps> = ({
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Google Sheets Pipeline Hub</span>
+                  </button>
+                </li>
+              )}
+              {onOpenGmailHub && (
+                <li>
+                  <button
+                    onClick={onOpenGmailHub}
+                    className="hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 text-red-300"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-red-400" />
+                    <span>Gmail Acquisitions &amp; Inbox</span>
+                  </button>
+                </li>
+              )}
+              {onOpenLandMap && (
+                <li>
+                  <button
+                    onClick={onOpenLandMap}
+                    className="hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 text-amber-300"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Nationwide Land Map Explorer</span>
                   </button>
                 </li>
               )}

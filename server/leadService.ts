@@ -30,8 +30,8 @@ try {
     const rawConfig = fs.readFileSync(configPath, 'utf-8');
     const firebaseConfig = JSON.parse(rawConfig);
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    console.log(`[LeadService] Connected to Firestore project: ${firebaseConfig.projectId}`);
+    db = firebaseConfig.firestoreDatabaseId ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : getFirestore(app);
+    console.log(`[LeadService] Connected to Firestore project: ${firebaseConfig.projectId} (db: ${firebaseConfig.firestoreDatabaseId || 'default'})`);
   }
 } catch (fbErr) {
   console.warn('[LeadService] Firebase initialization warning:', fbErr);

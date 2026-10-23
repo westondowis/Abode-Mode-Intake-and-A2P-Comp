@@ -1,3 +1,6 @@
+import { doc, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from './firebaseAuth';
+
 export interface LeadPayload {
   flow: 'sell' | 'buy';
   fullName: string;
@@ -252,6 +255,49 @@ export async function submitLead(payload: LeadPayload): Promise<{
     }
   } catch (serverErr) {
     console.warn('[LeadSubmission] Server endpoint unreached or offline, evaluating secondary dispatch:', serverErr);
+  }
+
+  // 2b. Direct Client Firestore Write to Cloud Firestore
+  try {
+    const firestoreData: Record<string, any> = {
+      id: leadId,
+      flow: leadRecord.flow,
+      fullName: leadRecord.fullName,
+      submittedAt: leadRecord.submittedAt,
+    };
+    if (leadRecord.phone) firestoreData.phone = leadRecord.phone;
+    if (leadRecord.email) firestoreData.email = leadRecord.email;
+    if (leadRecord.propertyAddress || leadRecord.parcelOrAddress) {
+      firestoreData.propertyAddress = leadRecord.propertyAddress || leadRecord.parcelOrAddress;
+    }
+    if (leadRecord.parcelNumber) firestoreData.parcelNumber = leadRecord.parcelNumber;
+    if (leadRecord.county) firestoreData.county = leadRecord.county;
+    if (leadRecord.state) firestoreData.state = leadRecord.state;
+    if (leadRecord.acreage) firestoreData.acreage = String(leadRecord.acreage);
+    if (leadRecord.askingPrice) firestoreData.askingPrice = leadRecord.askingPrice;
+    if (leadRecord.motivation) firestoreData.motivation = leadRecord.motivation;
+    if (leadRecord.timeline) firestoreData.timeline = leadRecord.timeline;
+    if (leadRecord.occupancyCondition) firestoreData.occupancyCondition = leadRecord.occupancyCondition;
+    if (leadRecord.notes) firestoreData.notes = leadRecord.notes;
+    if (typeof leadRecord.smsTransactionalConsent === 'boolean') {
+      firestoreData.smsTransactionalConsent = leadRecord.smsTransactionalConsent;
+    }
+    if (typeof leadRecord.smsMarketingConsent === 'boolean') {
+      firestoreData.smsMarketingConsent = leadRecord.smsMarketingConsent;
+    }
+    if (typeof leadRecord.smsConsent === 'boolean') {
+      firestoreData.smsConsent = leadRecord.smsConsent;
+    }
+    if (typeof leadRecord.nonSharingCovenantAccepted === 'boolean') {
+      firestoreData.nonSharingCovenantAccepted = leadRecord.nonSharingCovenantAccepted;
+    }
+
+    await setDoc(doc(db, 'leads', leadId), firestoreData);
+    if (!leadRecord.persistedTo) leadRecord.persistedTo = [];
+    leadRecord.persistedTo.push('firestore');
+    leadRecord.submissionStatus = 'persisted';
+  } catch (fsErr) {
+    console.warn('[LeadSubmission] Client Firestore direct write notice:', fsErr);
   }
 
   // 3. Secondary Dispatch: Apps Script Webhook (Google Sheets + Gmail Alert + Google Task)

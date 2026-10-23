@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail, MessageSquare } from 'lucide-react';
+import { Share2, Phone, Menu, X, HardDrive, FileSpreadsheet, Sun, Moon, Mail, MessageSquare, MapPin } from 'lucide-react';
 import brokerImg from '../assets/images/abode_broker_1790971379949.jpg';
 import { ENTITY_DETAILS } from '../data/policyData';
 import { useTheme } from '../context/ThemeContext';
@@ -10,6 +10,8 @@ interface HeaderProps {
   onSelectFlow: (flow: 'sell' | 'buy') => void;
   onOpenDriveVault: () => void;
   onOpenSheetsHub: () => void;
+  onOpenGmailHub?: () => void;
+  onOpenLandMap?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectFlow,
   onOpenDriveVault,
   onOpenSheetsHub,
+  onOpenGmailHub,
+  onOpenLandMap,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
@@ -218,6 +222,28 @@ export const Header: React.FC<HeaderProps> = ({
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Sheets Sync</span>
             </button>
+            {onOpenGmailHub && (
+              <button
+                onClick={onOpenGmailHub}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 dark:text-red-300 dark:bg-red-950/60 dark:hover:bg-red-900/60 dark:border-red-800/60 rounded-md transition-all cursor-pointer shadow-xs"
+                title="Access Gmail Acquisitions & Seller Inbox"
+              >
+                <Mail className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
+                <span>Gmail Inbox</span>
+              </button>
+            )}
+            {onOpenLandMap && (
+              <button
+                onClick={onOpenLandMap}
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:text-amber-300 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 dark:border-amber-700/60 rounded-md transition-all cursor-pointer shadow-xs"
+                title="View Nationwide Interactive Land Map & Parcel Explorer"
+              >
+                <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Land Map</span>
+              </button>
+            )}
             <button
               onClick={onOpenShareModal}
               type="button"
@@ -336,6 +362,30 @@ export const Header: React.FC<HeaderProps> = ({
               <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Sheets Pipeline Hub</span>
             </button>
+            {onOpenGmailHub && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenGmailHub();
+                }}
+                className="w-full text-left flex items-center gap-2 px-3 py-2 text-red-700 dark:text-red-300 hover:bg-slate-100 dark:hover:bg-cyan-950/60 rounded cursor-pointer font-bold"
+              >
+                <Mail className="w-4 h-4 text-red-500 dark:text-red-400" />
+                <span>Gmail Acquisitions Inbox</span>
+              </button>
+            )}
+            {onOpenLandMap && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenLandMap();
+                }}
+                className="w-full text-left flex items-center gap-2 px-3 py-2 text-amber-800 dark:text-amber-300 hover:bg-slate-100 dark:hover:bg-cyan-950/60 rounded cursor-pointer font-bold"
+              >
+                <MapPin className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                <span>Interactive Land Map</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
