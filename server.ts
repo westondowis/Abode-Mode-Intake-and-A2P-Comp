@@ -21,8 +21,8 @@ const PORT = process.env.NODE_ENV === 'production' && process.env.PORT ? Number(
 
 app.use(express.json({ limit: '15mb' }));
 
-// Lead Intake Submission Route: Persists to Firestore + Audit Log & Creates Underwriting Task & Triggers Safe Non-Blocking Alerts
-app.post('/api/leads/submit', async (req, res) => {
+// Lead Intake Submission Handler Logic
+const handleLeadPost = async (req: express.Request, res: express.Response) => {
   try {
     const data = req.body;
 
@@ -30,9 +30,9 @@ app.post('/api/leads/submit', async (req, res) => {
       return res.status(400).json({ error: 'Invalid payload: JSON object expected' });
     }
 
-    const fullName = String(data.fullName || '').trim();
-    const phone = String(data.phone || '').trim();
-    const email = String(data.email || '').trim();
+    const fullName = String(data.fullName || data.ownerName || '').trim();
+    const phone = String(data.phone || data.sellerPhone || '').trim();
+    const email = String(data.email || data.sellerEmail || '').trim();
 
     if (!fullName) {
       return res.status(400).json({ error: 'Full name is required' });
@@ -43,7 +43,7 @@ app.post('/api/leads/submit', async (req, res) => {
     }
 
     const leadId =
-      data.id && typeof data.id === 'string' && data.id.startsWith('ABODE-')
+      data.id && typeof data.id === 'string' && (data.id.startsWith('ABODE-') || data.id.startsWith('lead-'))
         ? data.id
         : `ABODE-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -56,16 +56,17 @@ app.post('/api/leads/submit', async (req, res) => {
       fullName,
       phone,
       email,
-      propertyAddress: String(data.propertyAddress || data.parcelOrAddress || '').trim(),
+      propertyAddress: String(data.propertyAddress || data.address || data.parcelOrAddress || '').trim(),
       parcelNumber: String(data.parcelNumber || '').trim(),
       county: String(data.county || '').trim(),
       state: String(data.state || '').trim(),
-      acreage: String(data.acreage || '').trim(),
-      askingPrice: String(data.askingPrice || data.sellTargetPrice || data.budgetRange || '').trim(),
+      acreage: String(data.acreage || data.estimatedSize || '').trim(),
+      askingPrice: String(data.askingPrice || data.askingPriceExpectation || data.sellTargetPrice || data.budgetRange || '').trim(),
       motivation: String(data.motivation || data.reasonForSelling || data.buyIntendedUse || '').trim(),
-      timeline: String(data.timeline || data.sellTimeline || data.purchasingTimeline || '').trim(),
-      occupancyCondition: String(data.occupancyCondition || data.sellOwnershipStatus || '').trim(),
-      notes: String(data.notes || '').trim(),
+      timeline: String(data.timeline || data.sellingTimeline || data.sellTimeline || data.purchasingTimeline || '').trim(),
+      occupancyCondition: String(data.occupancyCondition || data.condition || data.sellOwnershipStatus || '').trim(),
+      notes: String(data.notes || data.additionalComments || '').trim(),
+      propertyType: String(data.propertyType || 'vacant-land'),
       // Extended Vacant Land Utilities
       utilityWater: data.utilityWater ? String(data.utilityWater) : undefined,
       utilitySewer: data.utilitySewer ? String(data.utilitySewer) : undefined,
@@ -82,7 +83,7 @@ app.post('/api/leads/submit', async (req, res) => {
       ownershipStatus: data.ownershipStatus ? String(data.ownershipStatus) : undefined,
       probateDocumentationStatus: data.probateDocumentationStatus ? String(data.probateDocumentationStatus) : undefined,
       // A2P 10DLC & CTIA Carrier Compliance Metadata
-      smsTransactionalConsent: Boolean(data.smsTransactionalConsent ?? data.smsConsentTransactional ?? false),
+      smsTransactionalConsent: Boolean(data.smsTransactionalConsent ?? data.smsConsentTransactional ?? data.smsConsent ?? false),
       smsMarketingConsent: Boolean(data.smsMarketingConsent ?? data.smsConsentMarketing ?? false),
       smsConsent: Boolean(data.smsConsent ?? (data.smsTransactionalConsent || data.smsMarketingConsent)),
       consentTimestamp: data.consentTimestamp || (data.smsTransactionalConsent || data.smsMarketingConsent ? nowIso : null),
@@ -112,7 +113,10 @@ app.post('/api/leads/submit', async (req, res) => {
     console.error('[Server] Lead submission error:', message);
     return res.status(500).json({ error: message });
   }
-});
+};
+
+app.post('/api/leads', handleLeadPost);
+app.post('/api/leads/submit', handleLeadPost);
 
 // Diagnostic endpoint: Triggers test alert, automated underwriting task, and email dispatch
 app.post('/api/leads/test-alert', async (_req, res) => {

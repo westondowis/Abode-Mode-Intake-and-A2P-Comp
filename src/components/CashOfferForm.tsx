@@ -127,7 +127,7 @@ export const CashOfferForm: React.FC<CashOfferFormProps> = ({
     };
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -147,32 +147,55 @@ export const CashOfferForm: React.FC<CashOfferFormProps> = ({
 
     setSubmitting(true);
 
-    setTimeout(() => {
-      const offerBracket = calculateOfferBracket();
-      const desk = determineAssignedDesk();
+    const offerBracket = calculateOfferBracket();
+    const desk = determineAssignedDesk();
 
-      const newSubmission: PropertySubmission = {
-        id: `ABODE-${Math.floor(100000 + Math.random() * 900000)}`,
-        timestamp: new Date().toISOString(),
-        address,
-        propertyType,
-        condition,
-        timeline,
-        estimatedSize,
-        askingPriceExpectation,
-        ownerName,
-        email,
-        phone,
-        smsConsent,
-        notes,
-        estimatedOfferBracket: offerBracket,
-        assignedDesk: desk,
-      };
+    const newSubmission: PropertySubmission = {
+      id: `ABODE-${Math.floor(100000 + Math.random() * 900000)}`,
+      timestamp: new Date().toISOString(),
+      address,
+      propertyType,
+      condition,
+      timeline,
+      estimatedSize,
+      askingPriceExpectation,
+      ownerName,
+      email,
+      phone,
+      smsConsent,
+      notes,
+      estimatedOfferBracket: offerBracket,
+      assignedDesk: desk,
+    };
 
-      setSubmittedData(newSubmission);
-      setSubmitting(false);
-      window.scrollTo({ top: document.getElementById('cash-offer-section')?.offsetTop || 0, behavior: 'smooth' });
-    }, 600);
+    try {
+      await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newSubmission.id,
+          flow: 'sell',
+          fullName: ownerName,
+          phone,
+          email,
+          propertyAddress: address,
+          askingPrice: askingPriceExpectation || '$25,000 Cash',
+          motivation: notes || `Condition: ${condition}`,
+          timeline,
+          occupancyCondition: condition,
+          propertyType,
+          smsTransactionalConsent: smsConsent,
+          smsConsent: smsConsent,
+          submittedAt: newSubmission.timestamp,
+        }),
+      });
+    } catch (err) {
+      console.warn('[CashOfferForm] Backend dispatch warning:', err);
+    }
+
+    setSubmittedData(newSubmission);
+    setSubmitting(false);
+    window.scrollTo({ top: document.getElementById('cash-offer-section')?.offsetTop || 0, behavior: 'smooth' });
   };
 
   const handleResetForm = () => {

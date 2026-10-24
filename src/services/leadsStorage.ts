@@ -110,7 +110,7 @@ export function getStoredLeads(): Lead[] {
   }
 }
 
-export function saveLead(lead: Lead): Lead {
+export async function saveLead(lead: Lead): Promise<Lead> {
   const current = getStoredLeads();
   const index = current.findIndex((l) => l.id === lead.id);
   let updated: Lead[];
@@ -121,6 +121,35 @@ export function saveLead(lead: Lead): Lead {
     updated = [lead, ...current];
   }
   localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(updated));
+
+  const isSell = lead.type === 'sell';
+  const fullName = isSell ? (lead as SellLead).sellerName : (lead as BuyLead).buyerName;
+  const phone = isSell ? (lead as SellLead).sellerPhone : (lead as BuyLead).buyerPhone;
+  const email = isSell ? (lead as SellLead).sellerEmail : (lead as BuyLead).buyerEmail;
+  const propertyAddress = isSell ? (lead as SellLead).address : (lead as BuyLead).targetLocationName;
+  const askingPrice = isSell ? (lead as SellLead).askingPriceExpectation : (lead as BuyLead).budgetRange;
+  const motivation = isSell ? (lead as SellLead).reasonForSelling : (lead as BuyLead).plannedUse;
+  const timeline = isSell ? (lead as SellLead).sellingTimeline : (lead as BuyLead).purchasingTimeline;
+
+  try {
+    await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...lead,
+        fullName: fullName || 'Valued Client',
+        phone: phone || '',
+        email: email || '',
+        propertyAddress: propertyAddress || '',
+        askingPrice: askingPrice || '',
+        motivation: motivation || '',
+        timeline: timeline || '',
+      }),
+    });
+  } catch (err) {
+    console.warn('[leadsStorage] Backend sync warning:', err);
+  }
+
   return lead;
 }
 

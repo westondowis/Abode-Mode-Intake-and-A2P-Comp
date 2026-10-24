@@ -262,63 +262,23 @@ export async function dispatchLeadNotifications(
     process.env.MAKE_WEBHOOK_URL ||
     process.env.CRM_WEBHOOK_URL;
 
-  const isSell = lead.flow === 'sell';
-  const flowLabel = isSell ? 'LAND ACQUISITION / CASH OFFER' : 'LAND BUYER CRITERIA';
-  const propertyTitle = lead.propertyAddress || lead.parcelNumber || (lead.county ? `${lead.county} County, ${lead.state || 'US'}` : 'New Land Lead');
+  const addressStr = lead.propertyAddress || lead.parcelNumber || (lead.county ? `${lead.county} County, ${lead.state || 'CO'}` : 'Unspecified Parcel');
+  const rawAsking = lead.askingPrice || '25,000';
+  const askingPriceStr = rawAsking.startsWith('$') ? rawAsking : `$${rawAsking}`;
+  const propertyTypeStr = lead.propertyType === 'single-family' ? 'Single Family' : 'Land';
 
-  const leadCardPlain = `
-============================================================
-🔔 ABODE MODE - INSTANT LEAD INTAKE ALERT
-------------------------------------------------------------
-FLOW:              ${flowLabel}
-LEAD ID:           ${lead.id}
-SUBMITTED AT:      ${new Date(lead.submittedAt).toUTCString()}
-TARGET NOTIFY:     ${targetEmail}
+  const subject = `New Parcel Intake Alert: ${addressStr} | ${askingPriceStr}`;
+  const textBody = `Lead ID: ${lead.id}
+Property Type: ${propertyTypeStr}
+Address: ${addressStr}
+Asking Price: ${askingPriceStr}
+Seller Name: ${lead.fullName}
+Seller Phone: ${lead.phone || 'N/A'}
+Seller Email: ${lead.email || 'N/A'}
+Notes/Motivation: ${lead.notes || lead.motivation || 'None'}
+Submitted At: ${lead.submittedAt || new Date().toISOString()}`;
 
-UNDERWRITING TASK:
-• Task ID:         ${task?.id || `task_${lead.id}`}
-• Status:          ${task?.status || 'Pending Underwriting'}
-• Due Date:        ${task?.dueDate ? new Date(task.dueDate).toUTCString() : '24 Business Hours'}
-• Assigned To:     ${task?.assignedTo || targetEmail}
-
-PROPERTY / PARCEL DETAILS:
-• Address/APN:     ${lead.propertyAddress || lead.parcelNumber || 'N/A'}
-• Unknown Address: ${lead.unknownAddress ? 'YES (Dropped Pin / Document Uploaded)' : 'NO'}
-• GPS Coordinates: ${lead.gpsCoordinates ? `${lead.gpsCoordinates.lat}, ${lead.gpsCoordinates.lng}` : 'N/A'}
-• County & State:  ${lead.county || 'N/A'}, ${lead.state || 'N/A'}
-• Lot Size:        ${lead.acreage || 'N/A'} ${lead.lotSizeUnit || 'acres'}
-• Asking/Target:   ${lead.askingPrice || 'N/A'}
-• Motivation/Use:  ${lead.motivation || 'N/A'}
-• Timeline:        ${lead.timeline || 'Standard'}
-• Ownership:       ${lead.ownershipStatus || lead.occupancyCondition || 'N/A'}
-• Probate Status:  ${lead.probateDocumentationStatus || 'N/A'}
-
-UTILITIES INTAKE:
-• Water:           ${lead.utilityWater || 'N/A'}
-• Sewer/Septic:    ${lead.utilitySewer || 'N/A'}
-• Electric:        ${lead.utilityElectric || 'N/A'}
-• Heating Gas:     ${lead.utilityHeatingGas || 'N/A'}
-• Internet:        ${lead.utilityInternet || 'N/A'}
-• Drainage:        ${lead.utilityDrainage || 'N/A'}
-• Additional Notes:${lead.notes || 'None'}
-
-CONTACT DETAILS:
-• Full Name:       ${lead.fullName}
-• Phone:           ${lead.phone || 'N/A'}
-• Email:           ${lead.email || 'N/A'}
-
-A2P 10DLC COMPLIANCE AUDIT TRAIL:
-• SMS Tx Consent:  ${lead.smsTransactionalConsent ? 'YES (Opted-in)' : 'NO (Unchecked)'}
-• SMS Mkt Consent: ${lead.smsMarketingConsent ? 'YES (Opted-in)' : 'NO (Unchecked)'}
-• Consent Timestamp: ${lead.consentTimestamp || 'N/A'}
-• Non-Sharing Cov: ${lead.nonSharingCovenantAccepted ? 'DISPLAYED & AFFIRMED' : 'NO'}
-• Client IP Hint:  ${lead.consentIpHint || 'N/A'}
-• User Agent:      ${lead.userAgent || 'N/A'}
-• Disclosure Ver:  ${lead.disclosureVersion || 'CTIA_2026_V1'}
-============================================================
-`;
-
-  console.log(`[LeadService] Lead Notification Generated for: ${targetEmail}\n${leadCardPlain}`);
+  console.log(`[LeadService] Lead Notification Generated for: ${targetEmail}\n${textBody}`);
 
   // 1. Dispatch Webhook if configured
   if (webhookUrl) {
@@ -356,11 +316,9 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
   // 2. Email dispatch via Resend (with fallback to onboarding@resend.dev) or SMTP
   await sendResendEmailNotification({
     targetEmail,
-    flowLabel,
-    propertyTitle,
-    leadCardPlain,
+    subject,
+    textBody,
     lead,
-    task,
   });
 }
 
@@ -369,13 +327,11 @@ A2P 10DLC COMPLIANCE AUDIT TRAIL:
  */
 async function sendResendEmailNotification(params: {
   targetEmail: string;
-  flowLabel: string;
-  propertyTitle: string;
-  leadCardPlain: string;
+  subject: string;
+  textBody: string;
   lead: LeadSubmissionData;
-  task?: UnderwritingTask;
 }): Promise<boolean> {
-  const { targetEmail, flowLabel, propertyTitle, leadCardPlain, lead } = params;
+  const { targetEmail, subject, textBody } = params;
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
@@ -385,7 +341,6 @@ async function sendResendEmailNotification(params: {
 
   const primaryFrom = process.env.RESEND_FROM_EMAIL || 'Abode Mode Leads <leads@abodebuys.com>';
   const fallbackFrom = 'Abode Mode Leads <onboarding@resend.dev>';
-  const subject = `🔔 New ${flowLabel}: ${lead.fullName} (${propertyTitle})`;
 
   try {
     // Attempt 1: Primary custom domain
@@ -399,7 +354,7 @@ async function sendResendEmailNotification(params: {
         from: primaryFrom,
         to: [targetEmail],
         subject,
-        text: leadCardPlain,
+        text: textBody,
       }),
     });
 
@@ -422,7 +377,7 @@ async function sendResendEmailNotification(params: {
         from: fallbackFrom,
         to: [targetEmail],
         subject,
-        text: leadCardPlain,
+        text: textBody,
       }),
     });
 
@@ -439,6 +394,7 @@ async function sendResendEmailNotification(params: {
     return false;
   }
 }
+
 
 /**
  * Retrieves the most recent leads from the immutable audit log
