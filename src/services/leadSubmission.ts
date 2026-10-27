@@ -224,19 +224,25 @@ export async function submitLead(payload: LeadPayload): Promise<{
   }
 
   // 2. Primary Backend Dispatch: /api/leads/submit (Firestore + Server Audit Log + Asynchronous Alerts)
+  let serverDispatched = false;
   try {
-    const res = await fetch('/api/leads/submit', {
+    const serverFetchPromise = fetch('/api/leads/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(leadRecord),
     });
+    const serverTimeoutPromise = new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error('Server /api/leads/submit timeout')), 2500)
+    );
+    const res = await Promise.race([serverFetchPromise, serverTimeoutPromise]);
 
     if (res.ok) {
-      const data = await res.json();
+      serverDispatched = true;
+      const data = await res.json().catch(() => ({}));
       leadRecord.submissionStatus = 'persisted';
-      leadRecord.persistedTo = data.persistedTo;
+      leadRecord.persistedTo = data.persistedTo || ['server_api'];
 
       // Update cached status in localStorage
       try {
@@ -245,7 +251,7 @@ export async function submitLead(payload: LeadPayload): Promise<{
           const leads: StoredLeadRecord[] = JSON.parse(existing);
           if (leads[0] && leads[0].id === leadId) {
             leads[0].submissionStatus = 'persisted';
-            leads[0].persistedTo = data.persistedTo;
+            leads[0].persistedTo = leadRecord.persistedTo;
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(leads));
           }
         }
@@ -257,7 +263,36 @@ export async function submitLead(payload: LeadPayload): Promise<{
     console.warn('[LeadSubmission] Server endpoint unreached or offline, evaluating secondary dispatch:', serverErr);
   }
 
-  // 2b. Direct Client Firestore Write to Cloud Firestore
+  // 2a. Direct Client Make.com Webhook Fallback if /api/leads/submit fails or returns 404 (static hosting)
+  if (!serverDispatched) {
+    const makeWebhookUrl =
+      (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_LEAD_WEBHOOK_URL as string)) ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('abode_make_webhook_url') : null);
+
+    if (makeWebhookUrl && makeWebhookUrl.startsWith('http')) {
+      try {
+        const webhookPromise = fetch(makeWebhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(leadRecord),
+        });
+        const webhookTimeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Make.com webhook dispatch timeout')), 2000)
+        );
+        await Promise.race([webhookPromise, webhookTimeoutPromise]);
+        if (!leadRecord.persistedTo) leadRecord.persistedTo = [];
+        leadRecord.persistedTo.push('make_webhook');
+        leadRecord.submissionStatus = 'dispatched';
+      } catch (webhookErr) {
+        console.warn('[LeadSubmission] Direct Make.com webhook fallback timed out or failed:', webhookErr);
+      }
+    }
+  }
+
+  // 2b. Direct Client Firestore Write to Cloud Firestore with strict 1500ms timeout
   try {
     const firestoreData: Record<string, any> = {
       id: leadId,
@@ -292,12 +327,16 @@ export async function submitLead(payload: LeadPayload): Promise<{
       firestoreData.nonSharingCovenantAccepted = leadRecord.nonSharingCovenantAccepted;
     }
 
-    await setDoc(doc(db, 'leads', leadId), firestoreData);
+    const fsPromise = setDoc(doc(db, 'leads', leadId), firestoreData);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Client Firestore write timeout')), 1500)
+    );
+    await Promise.race([fsPromise, timeoutPromise]);
     if (!leadRecord.persistedTo) leadRecord.persistedTo = [];
     leadRecord.persistedTo.push('firestore');
     leadRecord.submissionStatus = 'persisted';
   } catch (fsErr) {
-    console.warn('[LeadSubmission] Client Firestore direct write notice:', fsErr);
+    console.warn('[LeadSubmission] Client Firestore write bypassed or timed out:', fsErr);
   }
 
   // 3. Secondary Dispatch: Apps Script Webhook (Google Sheets + Gmail Alert + Google Task)
@@ -309,7 +348,7 @@ export async function submitLead(payload: LeadPayload): Promise<{
 
   if (isConfiguredUrl) {
     try {
-      await fetch(webhookUrl, {
+      const scriptPromise = fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -317,6 +356,10 @@ export async function submitLead(payload: LeadPayload): Promise<{
         },
         body: JSON.stringify(leadRecord),
       });
+      const scriptTimeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Apps Script webhook dispatch timeout')), 2000)
+      );
+      await Promise.race([scriptPromise, scriptTimeoutPromise]);
 
       leadRecord.submissionStatus = 'dispatched';
       if (!leadRecord.persistedTo) leadRecord.persistedTo = [];
