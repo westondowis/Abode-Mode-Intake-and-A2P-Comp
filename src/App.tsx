@@ -49,6 +49,11 @@ export default function App() {
       const hash = window.location.hash.replace('#', '').toLowerCase();
       const path = window.location.pathname.toLowerCase();
 
+      if (path === '/opt-in' || path === '/opt-in.html' || hash === 'opt-in') {
+        window.location.href = '/opt-in.html';
+        return;
+      }
+
       if (path === '/privacy' || hash === 'privacy' || hash === 'mobile-sms-privacy' || hash === 'state-disclosures') {
         setPrivacySection(hash === 'privacy' || path === '/privacy' ? undefined : hash);
         setPrivacyOverlayOpen(true);

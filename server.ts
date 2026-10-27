@@ -30,7 +30,7 @@ const handleLeadPost = async (req: express.Request, res: express.Response) => {
       return res.status(400).json({ error: 'Invalid payload: JSON object expected' });
     }
 
-    const fullName = String(data.fullName || data.ownerName || '').trim();
+    const fullName = String(data.fullName || data.ownerName || data.sellerName || '').trim();
     const phone = String(data.phone || data.sellerPhone || '').trim();
     const email = String(data.email || data.sellerEmail || '').trim();
 
@@ -67,6 +67,7 @@ const handleLeadPost = async (req: express.Request, res: express.Response) => {
       occupancyCondition: String(data.occupancyCondition || data.condition || data.sellOwnershipStatus || '').trim(),
       notes: String(data.notes || data.additionalComments || '').trim(),
       propertyType: String(data.propertyType || 'vacant-land'),
+      source: String(data.source || 'Web Intake Form'),
       // Extended Vacant Land Utilities
       utilityWater: data.utilityWater ? String(data.utilityWater) : undefined,
       utilitySewer: data.utilitySewer ? String(data.utilitySewer) : undefined,
@@ -83,10 +84,10 @@ const handleLeadPost = async (req: express.Request, res: express.Response) => {
       ownershipStatus: data.ownershipStatus ? String(data.ownershipStatus) : undefined,
       probateDocumentationStatus: data.probateDocumentationStatus ? String(data.probateDocumentationStatus) : undefined,
       // A2P 10DLC & CTIA Carrier Compliance Metadata
-      smsTransactionalConsent: Boolean(data.smsTransactionalConsent ?? data.smsConsentTransactional ?? data.smsConsent ?? false),
+      smsTransactionalConsent: Boolean(data.smsTransactionalConsent ?? data.smsConsentTransactional ?? data.smsConsent ?? data.smsOptIn ?? false),
       smsMarketingConsent: Boolean(data.smsMarketingConsent ?? data.smsConsentMarketing ?? false),
-      smsConsent: Boolean(data.smsConsent ?? (data.smsTransactionalConsent || data.smsMarketingConsent)),
-      consentTimestamp: data.consentTimestamp || (data.smsTransactionalConsent || data.smsMarketingConsent ? nowIso : null),
+      smsConsent: Boolean(data.smsConsent ?? data.smsOptIn ?? (data.smsTransactionalConsent || data.smsMarketingConsent)),
+      consentTimestamp: data.consentTimestamp || (data.smsTransactionalConsent || data.smsMarketingConsent || data.smsOptIn ? nowIso : null),
       consentIpHint: String(data.consentIpHint || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'client-ip'),
       userAgent: String(data.userAgent || req.headers['user-agent'] || 'AbodeMode-Web/1.0'),
       disclosureVersion: String(data.disclosureVersion || 'CTIA_2026_V1'),
@@ -286,6 +287,22 @@ app.post('/api/generate-land-image', async (req, res) => {
     console.error('Server image generation error:', message);
     return res.status(500).json({ error: message });
   }
+});
+
+// Direct HTML routes for A2P 10DLC compliance verification
+app.get(['/opt-in', '/opt-in.html'], (_req, res) => {
+  const optInPath = path.resolve(__dirname, process.env.NODE_ENV === 'production' ? 'dist' : 'public', 'opt-in.html');
+  res.sendFile(optInPath);
+});
+
+app.get('/privacy.html', (_req, res) => {
+  const privacyPath = path.resolve(__dirname, process.env.NODE_ENV === 'production' ? 'dist' : 'public', 'privacy.html');
+  res.sendFile(privacyPath);
+});
+
+app.get('/terms.html', (_req, res) => {
+  const termsPath = path.resolve(__dirname, process.env.NODE_ENV === 'production' ? 'dist' : 'public', 'terms.html');
+  res.sendFile(termsPath);
 });
 
 // Dev or Prod setup

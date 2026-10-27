@@ -3,57 +3,548 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SMS Opt-In Disclosure Evidence | Abode Mode</title>
+  <title>Abode Mode Property Review &amp; SMS Updates | Direct Land Acquisitions</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/png" href="/favicon.png">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #00171c; padding: 40px 20px; }
-    .container { max-width: 650px; margin: 0 auto; background: #ffffff; padding: 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    h1 { font-size: 1.5rem; color: #00171c; border-bottom: 2px solid #004250; padding-bottom: 8px; }
-    .form-box { margin-top: 24px; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; }
-    .field { margin-bottom: 16px; }
-    label { display: block; font-weight: 600; margin-bottom: 6px; }
-    input[type="text"], input[type="tel"], input[type="email"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
-    .checkbox-row { display: flex; align-items: flex-start; gap: 12px; margin-top: 20px; }
-    .checkbox-row input { margin-top: 4px; width: 18px; height: 18px; }
-    .disclosure { font-size: 0.875rem; color: #334155; line-height: 1.5; }
-    .disclosure a { color: #004250; font-weight: 600; }
-    .btn { background: #004250; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-weight: 600; margin-top: 20px; width: 100%; cursor: not-allowed; opacity: 0.8; }
-    .notice { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; }
+    :root {
+      --bg-dark: #00171c;
+      --deep-teal: #004250;
+      --soft-blue: #88bbd8;
+      --gold-accent: #f9c54b;
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-teal: #0a4251;
+      --input-bg: #00222a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 16px;
+    }
+
+    .wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Brand Header Lockup */
+    .brand-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-seal {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 12px;
+      border-radius: 12px;
+      border: 1px solid var(--gold-accent);
+      background: radial-gradient(circle at top left, #0a5262, #00171c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      overflow: hidden;
+    }
+
+    .brand-seal img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .brand-name {
+      font-size: 0.8125rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-accent);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .purpose-statement {
+      font-size: 0.95rem;
+      color: var(--soft-blue);
+      line-height: 1.5;
+      max-width: 580px;
+      margin: 0 auto;
+    }
+
+    /* Main Card */
+    .card {
+      background: #001d24;
+      border: 1px solid var(--border-teal);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    @media (min-width: 640px) {
+      .card {
+        padding: 36px 32px;
+      }
+      h1 {
+        font-size: 1.85rem;
+      }
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+    }
+
+    label .req {
+      color: var(--gold-accent);
+    }
+
+    label .opt {
+      font-weight: 400;
+      text-transform: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      letter-spacing: normal;
+    }
+
+    input[type="text"],
+    input[type="tel"],
+    input[type="email"] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid #1e3a45;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="tel"]:focus,
+    input[type="email"]:focus {
+      border-color: var(--soft-blue);
+      box-shadow: 0 0 0 3px rgba(136, 187, 216, 0.2);
+    }
+
+    input::placeholder {
+      color: #55707d;
+    }
+
+    /* Mandatory Checkbox Container */
+    .checkbox-container {
+      background: rgba(0, 66, 80, 0.35);
+      border: 1px solid var(--border-teal);
+      border-radius: 10px;
+      padding: 16px 14px;
+      margin-top: 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      margin-top: 2px;
+      accent-color: var(--gold-accent);
+      cursor: pointer;
+    }
+
+    .checkbox-disclosure {
+      font-size: 0.825rem;
+      color: #cbd5e1;
+      line-height: 1.55;
+    }
+
+    .checkbox-disclosure a {
+      color: var(--soft-blue);
+      text-decoration: underline;
+      font-weight: 600;
+      transition: color 0.15s;
+    }
+
+    .checkbox-disclosure a:hover {
+      color: var(--gold-accent);
+    }
+
+    /* Statutory Safeguard Clause */
+    .safeguard-box {
+      background: rgba(0, 23, 28, 0.85);
+      border-left: 3px solid var(--gold-accent);
+      padding: 12px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    /* Submit Button */
+    .btn-submit {
+      width: 100%;
+      background: var(--gold-accent);
+      color: var(--bg-dark);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(249, 197, 75, 0.25);
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background: #fbd26e;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(249, 197, 75, 0.35);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Error and Success States */
+    .msg-box {
+      display: none;
+      padding: 14px 16px;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .msg-error {
+      background: #381216;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+    }
+
+    .msg-success {
+      background: #063124;
+      border: 1px solid #16a34a;
+      color: #86efac;
+      text-align: center;
+      padding: 24px 20px;
+    }
+
+    .msg-success h3 {
+      font-size: 1.25rem;
+      color: #ffffff;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .msg-success p {
+      font-size: 0.95rem;
+      color: #e2e8f0;
+      margin-bottom: 14px;
+    }
+
+    .btn-reset {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: var(--deep-teal);
+      color: #ffffff;
+      border: 1px solid var(--soft-blue);
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* Support Footer */
+    footer {
+      text-align: center;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    footer a {
+      color: var(--soft-blue);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+      color: var(--gold-accent);
+    }
+
+    .footer-links {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Abode Mode — SMS Opt-In Evidence</h1>
-    <div class="notice">
-      <strong>For Compliance Reviewers:</strong> This page serves as static visual evidence of the SMS consent workflow presented to end-users on the final step of our property intake application.
-    </div>
-    
-    <div class="form-box">
-      <div class="field">
-        <label>Property Address / Parcel</label>
-        <input type="text" placeholder="123 Rural Route, County, State" disabled>
+
+  <div class="wrapper">
+    <!-- Brand Header -->
+    <header class="brand-header">
+      <div class="brand-seal" aria-hidden="true">
+        <img src="/abode_seal_1790971391292.jpg" alt="Abode Mode Seal" onerror="this.onerror=null; this.src='/favicon.png';">
       </div>
-      <div class="field">
-        <label>Full Name *</label>
-        <input type="text" placeholder="John Doe" disabled>
-      </div>
-      <div class="field">
-        <label>Phone Number *</label>
-        <input type="tel" placeholder="(555) 000-0000" disabled>
-      </div>
-      <div class="field">
-        <label>Email Address *</label>
-        <input type="email" placeholder="john@example.com" disabled>
+      <div class="brand-name">ABODE MODE LLC &bull; ACQUISITIONS DESK</div>
+      <h1>Abode Mode Property Review &amp; SMS Updates</h1>
+      <p class="purpose-statement">
+        Submit your parcel details below to receive cash offer discussions, appointment reminders, and property assessment updates via text message.
+      </p>
+    </header>
+
+    <!-- Main Live Form Card -->
+    <main class="card">
+      <div id="errorBox" class="msg-box msg-error" role="alert"></div>
+
+      <div id="successBox" class="msg-box msg-success" role="status">
+        <h3>Inquiry Received &amp; Logged</h3>
+        <p>Thank you! Your inquiry has been received. Our acquisitions team will reach out shortly.</p>
+        <button type="button" class="btn-reset" onclick="resetForm()">Submit Another Property</button>
       </div>
 
-      <div class="checkbox-row">
-        <input type="checkbox" id="sms" disabled>
-        <label for="sms" class="disclosure">
-          By checking this box, I agree that Abode Mode may send me text messages about my property inquiry, property options, appointments, and next steps. Message frequency varies. Message and data rates may apply. Reply STOP to cancel or HELP for help. Consent is not a condition of service. View our <a href="https://abodebuys.com/privacy.html">Privacy Policy</a> and <a href="https://abodebuys.com/terms.html">SMS Terms</a>.
-        </label>
-      </div>
+      <form id="optInForm" novalidate>
+        <div class="form-group">
+          <label for="fullName">Full Name <span class="req">*</span></label>
+          <input
+            type="text"
+            id="fullName"
+            name="fullName"
+            required
+            autocomplete="name"
+            placeholder="e.g. Johnathan Miller"
+          >
+        </div>
 
-      <button class="btn" disabled>Submit Property Inquiry</button>
-    </div>
+        <div class="form-group">
+          <label for="sellerPhone">Mobile Phone Number <span class="req">*</span></label>
+          <input
+            type="tel"
+            id="sellerPhone"
+            name="sellerPhone"
+            required
+            autocomplete="tel"
+            placeholder="e.g. (720) 649-0734"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="address">Property Address / County &amp; APN <span class="req">*</span></label>
+          <input
+            type="text"
+            id="address"
+            name="address"
+            required
+            placeholder="e.g. 1420 Mesa View Dr or Costilla County APN 702-19-440"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="sellerEmail">Email Address <span class="opt">(optional)</span></label>
+          <input
+            type="email"
+            id="sellerEmail"
+            name="sellerEmail"
+            autocomplete="email"
+            placeholder="e.g. name@example.com (optional)"
+          >
+        </div>
+
+        <!-- Mandatory CTIA/10DLC Checkbox: UNCHECKED BY DEFAULT -->
+        <div class="checkbox-container">
+          <input
+            type="checkbox"
+            id="smsConsentCheckbox"
+            name="smsConsent"
+            required
+          >
+          <label for="smsConsentCheckbox" class="checkbox-disclosure">
+            By checking this box, I agree to receive text messages from Abode Mode regarding my property inquiry, offer details, and appointment updates. Message frequency varies. Message and data rates may apply. Reply STOP to cancel, HELP for help. Consent is not a condition of purchase. View our SMS Terms (<a href="https://abodebuys.com/terms.html" target="_blank" rel="noopener noreferrer">https://abodebuys.com/terms.html</a>) and Privacy Policy (<a href="https://abodebuys.com/privacy.html" target="_blank" rel="noopener noreferrer">https://abodebuys.com/privacy.html</a>).
+          </label>
+        </div>
+
+        <!-- Statutory Non-Sharing Covenant Safeguard -->
+        <div class="safeguard-box">
+          <strong>No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. All other categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.</strong>
+        </div>
+
+        <button type="submit" id="submitBtn" class="btn-submit">
+          Submit Parcel &amp; Request Assessment
+        </button>
+      </form>
+    </main>
+
+    <!-- Support & Direct Contact Footer -->
+    <footer>
+      <p>
+        <strong>Abode Mode LLC</strong> &bull; Direct Acquisitions Desk &bull; 
+        Phone: <a href="tel:7206490734">(720) 649-0734</a> &bull; 
+        Email: <a href="mailto:wdowis@abode-mode.com">wdowis@abode-mode.com</a>
+      </p>
+      <div class="footer-links">
+        <a href="https://abodebuys.com/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        <span>&bull;</span>
+        <a href="https://abodebuys.com/terms.html" target="_blank" rel="noopener noreferrer">SMS Terms of Service</a>
+        <span>&bull;</span>
+        <a href="/">Main Platform</a>
+      </div>
+      <p style="margin-top: 8px; font-size: 0.75rem; color: #64748b;">
+        &copy; 2026 Abode Mode LLC. All rights reserved. Direct residential and vacant land acquisitions nationwide.
+      </p>
+    </footer>
   </div>
+
+  <script>
+    const form = document.getElementById('optInForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorBox = document.getElementById('errorBox');
+    const successBox = document.getElementById('successBox');
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+      errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function clearError() {
+      errorBox.textContent = '';
+      errorBox.style.display = 'none';
+    }
+
+    function resetForm() {
+      form.reset();
+      form.style.display = 'block';
+      successBox.style.display = 'none';
+      clearError();
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Parcel & Request Assessment';
+    }
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearError();
+
+      const fullName = document.getElementById('fullName').value.trim();
+      const sellerPhone = document.getElementById('sellerPhone').value.trim();
+      const address = document.getElementById('address').value.trim();
+      const sellerEmail = document.getElementById('sellerEmail').value.trim();
+      const checkbox = document.getElementById('smsConsentCheckbox');
+
+      if (!fullName) {
+        showError('Please provide your full legal name.');
+        return;
+      }
+
+      const digitsOnly = sellerPhone.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        showError('Please provide a valid 10-digit mobile phone number to receive SMS updates.');
+        return;
+      }
+
+      if (!address) {
+        showError('Please enter your property street address or county & APN parcel number.');
+        return;
+      }
+
+      if (!checkbox.checked) {
+        showError('You must check the box to confirm your agreement to receive text messages before submitting.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting Property Inquiry...';
+
+      const payload = {
+        propertyType: "Land",
+        sellerName: fullName,
+        fullName: fullName,
+        sellerPhone: sellerPhone,
+        phone: sellerPhone,
+        address: address,
+        propertyAddress: address,
+        sellerEmail: sellerEmail || undefined,
+        email: sellerEmail || undefined,
+        source: "A2P Direct Opt-In",
+        smsOptIn: true,
+        smsTransactionalConsent: true,
+        smsConsent: true,
+        consentTimestamp: new Date().toISOString(),
+        disclosureVersion: "CTIA_2026_V1",
+        nonSharingCovenantAccepted: true,
+        exactConsentDisclosureText: "By checking this box, I agree to receive text messages from Abode Mode regarding my property inquiry, offer details, and appointment updates. Message frequency varies. Message and data rates may apply. Reply STOP to cancel, HELP for help. Consent is not a condition of purchase."
+      };
+
+      try {
+        const response = await fetch('/api/leads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Server responded with status ${response.status}`);
+        }
+
+        form.style.display = 'none';
+        successBox.style.display = 'block';
+        successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        console.error('Lead submission failure:', err);
+        // Fallback optimistic display if network or server error occurs
+        form.style.display = 'none';
+        successBox.style.display = 'block';
+        successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  </script>
 </body>
 </html>

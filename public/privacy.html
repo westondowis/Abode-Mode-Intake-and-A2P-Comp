@@ -3,82 +3,235 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy | Abode Mode</title>
+  <title>Privacy Policy &amp; SMS Data Disclosures | Abode Mode</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/png" href="/favicon.png">
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #00171c;
-      background-color: #f8fafc;
-      margin: 0;
-      padding: 40px 20px;
+    :root {
+      --bg-dark: #00171c;
+      --deep-teal: #004250;
+      --soft-blue: #88bbd8;
+      --gold-accent: #f9c54b;
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --card-bg: #001d24;
+      --border-teal: #0a4251;
     }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.65;
+      color: var(--text-light);
+      background-color: var(--bg-dark);
+      padding: 40px 16px;
+    }
+
     .container {
       max-width: 800px;
       margin: 0 auto;
-      background: #ffffff;
-      padding: 40px;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      background: var(--card-bg);
+      padding: 36px 28px;
+      border-radius: 14px;
+      border: 1px solid var(--border-teal);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
     }
+
+    @media (min-width: 640px) {
+      .container {
+        padding: 48px 40px;
+      }
+    }
+
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-teal);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-accent);
+    }
+
+    .brand-links a {
+      color: var(--soft-blue);
+      text-decoration: none;
+      font-size: 0.8125rem;
+      margin-left: 12px;
+    }
+
+    .brand-links a:hover {
+      color: var(--gold-accent);
+      text-decoration: underline;
+    }
+
     h1 {
-      color: #00171c;
-      border-bottom: 2px solid #004250;
-      padding-bottom: 12px;
-      margin-top: 0;
+      color: #ffffff;
+      font-size: 1.85rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
     }
+
+    .effective-date {
+      font-size: 0.85rem;
+      color: var(--soft-blue);
+      margin-bottom: 24px;
+    }
+
+    /* MANDATORY TCR/CTIA VERBATIM CLAUSE BOX */
+    .mandatory-clause-box {
+      background: rgba(0, 66, 80, 0.4);
+      border-left: 4px solid var(--gold-accent);
+      padding: 18px 20px;
+      margin: 24px 0 32px;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #ffffff;
+    }
+
     h2 {
-      color: #004250;
-      margin-top: 28px;
+      color: var(--gold-accent);
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(10, 66, 81, 0.5);
+      padding-bottom: 6px;
     }
-    .highlight-box {
-      background-color: #f0fdf4;
-      border-left: 4px solid #16a34a;
-      padding: 16px;
-      margin: 20px 0;
-      font-weight: 600;
+
+    p {
+      color: #cbd5e1;
+      margin-bottom: 14px;
+      font-size: 0.925rem;
     }
+
+    ul {
+      color: #cbd5e1;
+      margin-bottom: 18px;
+      padding-left: 24px;
+      font-size: 0.925rem;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    strong {
+      color: #ffffff;
+    }
+
+    a {
+      color: var(--soft-blue);
+      text-decoration: underline;
+    }
+
+    a:hover {
+      color: var(--gold-accent);
+    }
+
+    .contact-card {
+      background: rgba(0, 23, 28, 0.7);
+      border: 1px solid var(--border-teal);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-top: 16px;
+      font-size: 0.9rem;
+      color: #e2e8f0;
+    }
+
     footer {
       margin-top: 40px;
-      font-size: 0.875rem;
-      color: #64748b;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Privacy Policy</h1>
-    <p><strong>Effective Date:</strong> January 1, 2026</p>
-    <p><strong>Entity:</strong> Abode Mode (abodebuys.com)</p>
+    <div class="brand-bar">
+      <div class="brand-name">ABODE MODE LLC</div>
+      <div class="brand-links">
+        <a href="/opt-in.html">SMS Opt-In Form</a>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/">Home</a>
+      </div>
+    </div>
 
-    <div class="highlight-box">
-      No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. All the above categories exclude text messaging originator opt-in data and consent; this information will not be shared with or sold to any third parties under any circumstances.
+    <h1>Privacy Policy &amp; SMS Safeguards</h1>
+    <p class="effective-date"><strong>Effective Date:</strong> January 1, 2026 &bull; <strong>Operating Entity:</strong> Abode Mode LLC (abodebuys.com / abode-mode.com)</p>
+
+    <!-- MANDATORY CARRIER REVIEW CLAUSE (EXACT VERBATIM) -->
+    <div class="mandatory-clause-box">
+      <strong>No mobile information will be shared with third parties/affiliates for marketing/promotional purposes. All other categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.</strong>
     </div>
 
     <h2>1. Information We Collect</h2>
-    <p>We collect information directly from you when you submit a property inquiry on abodebuys.com or communicate with our acquisitions team via phone or email. This includes:</p>
+    <p>Abode Mode collects information directly from property owners and authorized representatives when submitting parcel details, requesting a written cash offer, or opting in to receive SMS transaction updates. This includes:</p>
     <ul>
-      <li>Contact details (Name, Phone Number, Email Address)</li>
-      <li>Property details (Street address, APN, condition, ownership status, asking price)</li>
-      <li>Records of communications and consent timestamps</li>
+      <li><strong>Contact Information:</strong> Full legal name, mobile telephone number, email address, and mailing address.</li>
+      <li><strong>Property &amp; Parcel Details:</strong> Physical street address, county, state, Assessor Parcel Number (APN), acreage, zoning, utility connections, and ownership standing.</li>
+      <li><strong>Telephony &amp; Consent Records:</strong> Date and timestamp of opt-in, originating IP address, web user-agent string, exact disclosure version affirmed, and communication transcripts.</li>
     </ul>
 
-    <h2>2. How We Use Information</h2>
-    <p>Collected information is used exclusively to evaluate real estate transactions, discuss property options, coordinate site reviews, schedule appointments, and fulfill contractual acquisition obligations.</p>
+    <h2>2. Purpose of Information Use</h2>
+    <p>We use the collected information strictly for legitimate commercial real estate acquisition activities, including:</p>
+    <ul>
+      <li>Evaluating parcel title, easements, market valuation, and preparing formal written purchase contracts.</li>
+      <li>Sending transaction-related SMS notifications, offer status updates, inspection schedule reminders, and closing milestone alerts.</li>
+      <li>Complying with statutory real estate transaction recording and telecommunications carrier compliance protocols.</li>
+    </ul>
 
-    <h2>3. SMS Consent & Opt-In Safeguards</h2>
-    <p>Text messaging originator opt-in data and consent are strictly excluded from all data sharing or transfer. We do not sell, rent, lease, or share phone numbers or consent data with any third parties or marketing affiliates.</p>
+    <h2>3. Text Messaging (SMS) Originator Opt-In Data Protection</h2>
+    <p>We strictly enforce a non-sharing covenant across all messaging programs. <strong>Text messaging originator opt-in data and consent are strictly excluded from all data sharing, sales, rentals, or promotional transfers.</strong></p>
+    <p>Your mobile phone number and opt-in consent record will never be shared with, sold to, or leased to any external third party, data aggregator, marketing broker, or affiliate under any circumstances.</p>
 
-    <h2>4. Contact Us</h2>
-    <p>For questions regarding this policy or to request data removal, contact:</p>
-    <p>
-      <strong>Abode Mode</strong><br>
-      Email: <a href="mailto:wdowis@abodebuys.com">wdowis@abodebuys.com</a><br>
-      Website: <a href="https://abodebuys.com">https://abodebuys.com</a>
-    </p>
+    <h2>4. Carrier Opt-Out &amp; Support Protocols</h2>
+    <p>You have full autonomy over your mobile communications at all times:</p>
+    <ul>
+      <li><strong>Opt-Out:</strong> Reply <strong>STOP</strong> to any SMS message from Abode Mode to instantly cancel future text messages. You will receive one final confirmation text acknowledging your cancellation.</li>
+      <li><strong>Customer Support:</strong> Reply <strong>HELP</strong> to any message, call our acquisitions desk directly at <strong>(720) 649-0734</strong>, or email <strong>wdowis@abode-mode.com</strong>.</li>
+      <li><strong>Frequency &amp; Rates:</strong> Message frequency varies based on transaction milestones. Standard message and data rates may apply depending on your mobile carrier plan.</li>
+      <li><strong>Independence:</strong> Consent to receive SMS messages is completely voluntary and is not a condition of purchasing, selling, or contracting with Abode Mode LLC.</li>
+    </ul>
+
+    <h2>5. Data Retention &amp; Security Safeguards</h2>
+    <p>We implement industry-standard encryption, strict database access controls, and audited cloud storage protocols to protect your personal and property records against unauthorized access, loss, or disclosure.</p>
+
+    <h2>6. Contact Our Compliance Desk</h2>
+    <p>For questions regarding this Privacy Policy, your opt-in status, or to request permanent record deletion, contact our primary office:</p>
+    
+    <div class="contact-card">
+      <strong>Abode Mode LLC &bull; Compliance &amp; Acquisitions Desk</strong><br>
+      Attn: William Dowis<br>
+      Phone: <a href="tel:7206490734">(720) 649-0734</a><br>
+      Direct Email: <a href="mailto:wdowis@abode-mode.com">wdowis@abode-mode.com</a><br>
+      Web Portal: <a href="https://abodebuys.com" target="_blank" rel="noopener noreferrer">https://abodebuys.com</a><br>
+      SMS Opt-In Form: <a href="https://abodebuys.com/opt-in.html" target="_blank" rel="noopener noreferrer">https://abodebuys.com/opt-in.html</a>
+    </div>
 
     <footer>
-      &copy; 2026 Abode Mode. All rights reserved.
+      &copy; 2026 Abode Mode LLC. All rights reserved. Commercial vacant land &amp; residential property acquisitions nationwide.
     </footer>
   </div>
 </body>

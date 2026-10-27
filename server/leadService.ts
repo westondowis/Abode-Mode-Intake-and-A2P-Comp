@@ -3,10 +3,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { google } from 'googleapis';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
+
+// Central Google Sheets Ledger Configuration
+const GOOGLE_SHEETS_SPREADSHEET_ID = '1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28';
 
 // Data audit log paths
 const DATA_DIR = path.resolve(ROOT_DIR, 'data');
@@ -188,8 +192,82 @@ export async function createUnderwritingTask(lead: LeadSubmissionData): Promise<
 }
 
 /**
+ * Appends an incoming lead directly to the central Google Sheets ledger:
+ * Sheet ID: 1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28
+ *
+ * Exact Array Index Order:
+ * [0]: leadId
+ * [1]: submittedAt (ISO String)
+ * [2]: propertyType
+ * [3]: address
+ * [4]: askingPrice
+ * [5]: sellerName
+ * [6]: sellerPhone
+ * [7]: sellerEmail
+ * [8]: source
+ * [9]: notes
+ */
+export async function appendLeadToSheet(lead: LeadSubmissionData): Promise<boolean> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const leadId = String(lead.id || '');
+    const submittedAt = String(lead.submittedAt || new Date().toISOString());
+    const propertyType = String(
+      lead.propertyType ||
+        (lead.flow === 'sell' ? 'Single Family or Land' : 'Land Buyer Criteria')
+    );
+    const address = String(
+      lead.propertyAddress ||
+        lead.parcelNumber ||
+        (lead.county ? `${lead.county} County, ${lead.state || 'CO'}` : '')
+    );
+    const askingPrice = String(lead.askingPrice || '');
+    const sellerName = String(lead.fullName || '');
+    const sellerPhone = String(lead.phone || '');
+    const sellerEmail = String(lead.email || '');
+    const source = String(lead.source || lead.leadSource || 'Web Intake Form');
+    const notes = String(lead.notes || lead.motivation || '');
+
+    const rowValues = [
+      leadId,        // [0]: leadId
+      submittedAt,   // [1]: submittedAt (ISO String)
+      propertyType,  // [2]: propertyType
+      address,       // [3]: address
+      askingPrice,   // [4]: askingPrice
+      sellerName,    // [5]: sellerName
+      sellerPhone,   // [6]: sellerPhone
+      sellerEmail,   // [7]: sellerEmail
+      source,        // [8]: source
+      notes,         // [9]: notes
+    ];
+
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
+      range: 'A:J',
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [rowValues],
+      },
+    });
+
+    console.log(`[LeadService] Lead ${leadId} successfully appended to central Google Sheets ledger (HTTP ${response.status})`);
+    return true;
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn('[LeadService] Google Sheets append notice (non-blocking):', errorMsg);
+    return false;
+  }
+}
+
+/**
  * Persists lead to Firestore and immutable backup JSON audit file,
  * creates automated Underwriting Task,
+ * appends lead to central Google Sheets ledger,
  * then triggers asynchronous alerts to the acquisition desk without blocking.
  */
 export async function processIncomingLead(leadData: LeadSubmissionData): Promise<{
@@ -227,10 +305,20 @@ export async function processIncomingLead(leadData: LeadSubmissionData): Promise
     }
   }
 
-  // 3. Automated Underwriting Task Creation: task_[leadId], "Pending Underwriting", 24 business hours out
+  // 3. Central Google Sheets Ledger Appending (Sheet ID: 1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28)
+  try {
+    const sheetSuccess = await appendLeadToSheet(leadData);
+    if (sheetSuccess) {
+      persistedTo.push('google_sheets');
+    }
+  } catch (sheetErr) {
+    console.warn('[LeadService] Google Sheets append error:', sheetErr);
+  }
+
+  // 4. Automated Underwriting Task Creation: task_[leadId], "Pending Underwriting", 24 business hours out
   const task = await createUnderwritingTask(leadData);
 
-  // 4. Trigger Asynchronous Notifications (Non-blocking & Safe Execution)
+  // 5. Trigger Asynchronous Notifications (Non-blocking & Safe Execution)
   // Fire-and-forget promise so frontend response is instantaneous
   dispatchLeadNotifications(leadData, task).catch((notifErr) => {
     console.error('[LeadService] Safe non-blocking notification error caught:', notifErr);
@@ -313,9 +401,12 @@ Submitted At: ${lead.submittedAt || new Date().toISOString()}`;
     }
   }
 
+  const ccEmail = 'wdowis@abode-mode.com';
+
   // 2. Email dispatch via Resend (with fallback to onboarding@resend.dev) or SMTP
   await sendResendEmailNotification({
     targetEmail,
+    ccEmail,
     subject,
     textBody,
     lead,
@@ -327,11 +418,12 @@ Submitted At: ${lead.submittedAt || new Date().toISOString()}`;
  */
 async function sendResendEmailNotification(params: {
   targetEmail: string;
+  ccEmail?: string;
   subject: string;
   textBody: string;
   lead: LeadSubmissionData;
 }): Promise<boolean> {
-  const { targetEmail, subject, textBody } = params;
+  const { targetEmail, ccEmail = 'wdowis@abode-mode.com', subject, textBody } = params;
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
@@ -341,6 +433,7 @@ async function sendResendEmailNotification(params: {
 
   const primaryFrom = process.env.RESEND_FROM_EMAIL || 'Abode Mode Leads <leads@abodebuys.com>';
   const fallbackFrom = 'Abode Mode Leads <onboarding@resend.dev>';
+  const ccList = [ccEmail];
 
   try {
     // Attempt 1: Primary custom domain
@@ -353,13 +446,14 @@ async function sendResendEmailNotification(params: {
       body: JSON.stringify({
         from: primaryFrom,
         to: [targetEmail],
+        cc: ccList,
         subject,
         text: textBody,
       }),
     });
 
     if (emailRes.ok) {
-      console.log(`[LeadService] Email alert dispatched via Resend (${primaryFrom}) to ${targetEmail}`);
+      console.log(`[LeadService] Email alert dispatched via Resend (${primaryFrom}) to ${targetEmail} (CC: ${ccList.join(', ')})`);
       return true;
     }
 
@@ -376,13 +470,14 @@ async function sendResendEmailNotification(params: {
       body: JSON.stringify({
         from: fallbackFrom,
         to: [targetEmail],
+        cc: ccList,
         subject,
         text: textBody,
       }),
     });
 
     if (emailRes.ok) {
-      console.log(`[LeadService] Email alert dispatched via Resend fallback (${fallbackFrom}) to ${targetEmail}`);
+      console.log(`[LeadService] Email alert dispatched via Resend fallback (${fallbackFrom}) to ${targetEmail} (CC: ${ccList.join(', ')})`);
       return true;
     }
 
