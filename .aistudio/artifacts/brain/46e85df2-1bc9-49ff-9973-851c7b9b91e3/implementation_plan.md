@@ -1,211 +1,220 @@
-# Architecture Overhaul & Security Lockdown: Abode Mode Land Intake Pipeline
+# Google Sheets Integration: 40-Column Master Ledger & Dynamic Flow Routing (Revised)
 
-An end-to-end architectural overhaul and security lockdown of the Abode Mode land acquisition pipeline (`src/components/IntakePipeline.tsx`, `src/components/Header.tsx`, `ParcelPinDropModal.tsx`, `server.ts`, and associated lead services). This update addresses critical UI validation and security boundaries, standardizes direct contact actions, isolates public lead confirmation from internal admin tools, and deploys the complete 4-step seller intake pipeline.
+An architectural update to `server/leadService.ts` to connect the Abode Mode intake pipeline to the new master Google Sheets ledger, route submissions dynamically between dedicated **Buyer Intake** and **Seller Intake** tabs, and map the complete 40-column payload matching the ledger's frozen headers.
 
 ---
 
 ### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> This revised plan incorporates all requirements from your specification, partitioned into two unified phases:
->
-> **Part 1: Critical UI, Validation & Security Fixes**
-> - **Step 4 Strict Validation**: Full Name, Phone Number, and Email Address are all mandatory before submission. The SMS A2P compliance checkboxes remain 100% optional and default unchecked.
-> - **Header Pre-populated Quick Actions**: Dedicated click-to-contact links for Phone (`tel:7206490734`), SMS Text (`sms:7206490734?body=...`), and Email (`mailto:wdowis@abode-mode.com?subject=...`) with pre-populated inquiry templates.
-> - **Theme Switcher Mobile & Desktop Fix**: Touch-action and pointer-event safe toggle on `<html>` root with persistent `localStorage` synchronization.
-> - **Strict Frontend UI Separation**: Complete elimination of admin-facing badges, Drive authentication modals, and raw backend views on public form completion. Visitors only see a clean, reassuring "Thank You" confirmation screen.
-> - **Silent Server-Side Notification Logging**: Robust server-side error logging for `ACQUISITION_NOTIFICATION_EMAIL`, `LEAD_WEBHOOK_URL`, and `RESEND_API_KEY` without exposing internal error stacks to the public client.
->
-> **Part 2: Intake Pipeline Architecture Overhaul**
-> - **Step 1**: Google Maps Places address autocomplete + "Unknown Address" toggle with document drag-and-drop upload & `ParcelPinDropModal.tsx` (6-decimal coordinate capture) + Acres vs. Sq Ft unit conversion.
-> - **Step 2**: 6 dedicated dropdown sections for Vacant Land Utilities (Water, Sewer, Electric, Heating/Gas, Internet, Drainage) with exact industry-standard options.
-> - **Step 3**: Enriched unique features guidance + conditional Probate/Trust title inquiry + Asking Price completely removed.
-> - **Step 4**: Animated spotlight hero card for `ASKING PRICE:` with currency formatting, followed by required contact details and CTIA/A2P compliance disclosures.
+> This revised plan incorporates your two latest adjustments:
+> 1. **Boolean Guard for `hasProbateDocumentation` (Index [25])**:
+>    Explicitly checks against `null` and `undefined` so that `false` is preserved as `"false"`:
+>    ```ts
+>    lead.hasProbateDocumentation !== undefined && lead.hasProbateDocumentation !== null ? String(lead.hasProbateDocumentation) : ''
+>    ```
+> 2. **Type-Safe Lead Logging**:
+>    Avoids strict type compilation issues when logging the lead identifier:
+>    ```ts
+>    console.log(`[LeadService] Lead ${(lead as any).id || lead.fullName || 'submission'} successfully appended to ${targetRange} (HTTP ${response.status})`);
+>    ```
+> 3. **Preserved Ledger Directives**:
+>    - Quoted range names: `lead.flow === 'buy' ? "'Buyer Intake'!A:AN" : "'Seller Intake'!A:AN"`
+>    - Value input option: `valueInputOption: 'USER_ENTERED'`
+>    - All 40 column mappings in strict ordinal sequence with empty string fallbacks for null/undefined values.
 
 ---
 
-### 1. Overview & System Architecture
+### 1. Overview & Data Flow
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Abode Mode Client App                           │
-│                                                                        │
-│  ┌───────────────────────┐          ┌───────────────────────────────┐  │
-│  │   Header Contact Bar  │          │   ParcelPinDropModal (NEW)    │  │
-│  │   - Phone: tel:       │          │   - Interactive Map Pin-Drop  │  │
-│  │   - SMS: sms:?body=   │          │   - 6-decimal Lat/Lng output  │  │
-│  │   - Email: mailto:    │          └───────────────┬───────────────┘  │
-│  │   - Robust Theme Sw.  │                          │                  │
-│  └──────────┬────────────┘                          ▼                  │
-│             │                       ┌───────────────────────────────┐  │
-│             │                       │      IntakePipeline.tsx       │  │
-│             │                       │  Step 1: Places Search, Doc   │  │
-│             │                       │          Upload, Acre/SqFt    │  │
-│             │                       │  Step 2: 6 Utility Dropdowns  │  │
-│             │                       │  Step 3: Notes & Probate Info │  │
-│             │                       │  Step 4: Asking Price Hero    │  │
-│             │                       │          + Strict Contact Val │  │
-│             │                       └───────────────┬───────────────┘  │
-│             │                                       │                  │
-│             ▼                                       ▼                  │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │ Public Submission Result Screen: Pure "Thank You" Confirmation   │  │
-│  │ (No Admin Badges, No Drive Auth Popups, No Data Inspection Views)│  │
-│  └──────────────────────────────────┬───────────────────────────────┘  │
-└─────────────────────────────────────┼──────────────────────────────────┘
-                                      │
-                                      ├──► [POST /api/leads/submit]
-                                      │         │
-                                      │         ├──► Immutable Local Audit Log
-                                      │         ├──► Firestore Document Storage
-                                      │         ├──► Asynchronous Resend/SMTP Email
-                                      │         └──► Inbound Webhook Dispatch
-                                      │              (With server-side error logs)
-                                      ▼
-                        [Google Drive Diligence Vault]
-                        (Automated file upload on submit)
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                       Public & Client Intake Submissions                       │
+│             (CashOfferForm.tsx, SellLandPage.tsx, IntakePipeline.tsx)          │
+└───────────────────────────────────────┬────────────────────────────────────────┘
+                                        │ POST /api/leads or /api/leads/submit
+                                        ▼
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                       Express Server: server/leadService.ts                    │
+│                                                                                │
+│   ┌────────────────────────────────────────────────────────────────────────┐   │
+│   │ 1. Immutable Audit Log (leads_audit.jsonl)                             │   │
+│   │ 2. Cloud Firestore Document Persistence                                │   │
+│   │ 3. Automated Underwriting Task Creation (24h business SLA)             │   │
+│   │ 4. Asynchronous Alerts (Resend/SMTP Email + Zapier/Make Webhook)       │   │
+│   └───────────────────────────────────┬────────────────────────────────────┘   │
+│                                       │                                        │
+│                                       ▼                                        │
+│   ┌────────────────────────────────────────────────────────────────────────┐   │
+│   │ 5. Google Sheets v4 Master Ledger Appender (appendLeadToSheet)         │   │
+│   │    - Spreadsheet ID: 1QYduEY1P6OL6vOPUkEZCCOUB8jgSBn6xYmW4FaHIB0w     │   │
+│   │    - Target Range:                                                     │   │
+│   │        • 'buy'  ──► "'Buyer Intake'!A:AN"                              │   │
+│   │        • 'sell' ──► "'Seller Intake'!A:AN"                             │   │
+│   │    - valueInputOption: 'USER_ENTERED'                                  │   │
+│   │    - 40 columns strictly in order [0] to [39]                          │   │
+│   │    - Type-safe execution and logging                                   │   │
+│   └────────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 2. User Experience & Visual Design
+### 2. Complete 40-Column Ledger Mapping Specification
 
-#### Header & Contact Actions
-- **Click-to-Contact Bar**:
-  - **Phone Icon & Label**: `tel:7206490734`
-  - **SMS Text Icon & Label**: `sms:7206490734?body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A`
-  - **Email Icon & Label**: `mailto:wdowis@abode-mode.com?subject=Land%20Sale%20Inquiry&body=Hello%20I%20am%20interested%20in%20selling%20my%20plot%20of%20land%3A%0A%0AName%3A%0AAddress%2FParcel%20%23%3A%0ANotes%20about%20property%3A`
-- **Theme Switcher**:
-  - Accessible on desktop and mobile (`onTouchEnd` and `onClick` handlers with `touch-action: manipulation`).
-  - Ensures clean synchronous class manipulation on `document.documentElement` (`light` vs. `dark`) with zero delay or touch bounce.
+The appended row will contain exactly 40 indexed values corresponding to spreadsheet columns `A` through `AN`:
 
-#### Intake Pipeline: Step-by-Step UI
-
-##### Step 1: Parcel Identity, Location & Lot Sizing
-1. **Google Places Search**:
-   - High-contrast search input with magnifying glass icon and instant predictive address suggestions.
-   - Selecting a suggestion automatically populates: Street Address, City, County, State, and Zip Code.
-2. **"I do not know the physical address" Toggle**:
-   - Prominent checkbox styled cleanly below the search bar.
-   - When checked, collapses street address inputs and immediately reveals two intuitive fallback options:
-     - **Option A (Document Drag & Drop)**: Dropzone for deed PDFs, property tax payment receipts, parcel surveys, or plats. Includes file type validation, size indicator, real-time preview thumbnail/icon, and remove option. Staged for automatic sync to Google Drive diligence vault.
-     - **Option B (Pin-Drop Interactive Map)**: Distinct button launching `ParcelPinDropModal.tsx`. Displays an interactive map view allowing the user to zoom into their land and click to place a target pin. Extracts and locks coordinates to 6 decimal places (e.g. `37.284912, -105.419204`).
-3. **Lot Size Unit Selector**:
-   - Segmented dropdown: **Acres** vs. **Square Feet**.
-   - Direct numerical input. If Square Feet is selected (e.g. `43,560`), an inline dynamic helper immediately displays: `Equivalent: 1.00 Acre` (`value / 43560`).
-
-##### Step 2: Vacant Land Utility Intake
-Structured into 6 clean, accessible select dropdowns with explicit option descriptions:
-1. **Access to Water**:
-   - City / County Water at the Street
-   - City / County Water Nearby (Extension Required)
-   - Existing Private Well on Site
-   - Private Well Needed
-   - Unknown
-2. **Sewer & Wastewater**:
-   - City / County Sewer at the Street
-   - City / County Sewer Nearby (Extension Required)
-   - Existing Septic System on Site
-   - Septic System Needed (Passed Perc Test)
-   - Septic System Needed (No Perc Test on Record)
-   - Unknown
-3. **Electric Service**:
-   - Power at the Property Line
-   - Power Nearby (Poles Required)
-   - Existing Electric Meter / Service Drop on Site
-   - Off-Grid Only
-   - Unknown
-4. **Heating & Gas**:
-   - Natural Gas at the Street
-   - Propane Required (Bulk Tank)
-   - All-Electric
-   - Unknown
-5. **Internet & Telecommunications**:
-   - Cable / Fiber at the Street
-   - DSL / Telephone Wire Only
-   - Wireless / Satellite Only
-   - Unknown
-6. **Surface Drainage & Stormwater**:
-   - Dry Lot with Roadside Drainage
-   - Low-Lying / Seasonal Standing Water
-   - Mapped Floodplain or Wetland Present
-   - Unknown
-
-##### Step 3: Parcel Notes & Title Standings
-1. **Standout Parcel Notes**:
-   - Textarea with guided placeholder:
-     *"Highlight unique features (e.g., year-round creek, river running through property, mountain views, mature timber, backing to National Forest / BLM land, established trail access, perimeter fencing, cleared building pad)..."*
-2. **Ownership & Conditional Probate Inquiry**:
-   - Retains ownership type selector (`Sole Owner`, `Joint / Tenants in Common`, `Inherited`, `Probate`, `Held in Trust`, `Tax Lien / Delinquent`, `Other`).
-   - If `Inherited`, `Probate`, or `Held in Trust` is chosen, an inquiry card smoothly expands:
-     - Prompt: *"Do you have probated documentation or verified will information entitling you the rightful owner?"*
-     - Radio choices:
-       - *Yes, probate completed & documentation on file*
-       - *In probate proceedings currently*
-       - *Will / trust documents available but not probated*
-       - *No formal probate opened yet*
-       - *Other / Custom details (reveals text note)*
-3. **Asking Price Removed**:
-   - Completely excised from Step 3.
-
-##### Step 4: Asking Price Spotlight & Submission
-1. **Hero Spotlight Card**:
-   - Positioned at the very top of Step 4.
-   - Styled with a subtle radiant gold border, pulsing glow animation, and high-visibility typography:
-     - Header: **`ASKING PRICE:`**
-     - Large formatted currency input (`$`) with thousands comma separation.
-     - Subtitle: *"What cash price would you be thrilled to accept to close quickly?"*
-2. **Strict Contact Validation**:
-   - **Full Name**: Required.
-   - **Phone Number**: Required (`type="tel"`).
-   - **Email Address**: Required (`type="email"`).
-   - Clear, friendly inline error alerts if any of these three fields are missing when submitting.
-3. **A2P 10DLC SMS Disclosures**:
-   - Preserved exactly as required: Two separate, unbundled, **unchecked by default**, and **optional** checkboxes for transactional and promotional texts.
-   - Submission proceeds smoothly whether the checkboxes are checked or left unchecked.
-4. **Public "Thank You" Screen**:
-   - When submitted, the form transitions to an elegant, client-facing confirmation:
-     - Confirmation checkmark and client name.
-     - Unique Lead Reference ID.
-     - Clear expectation message: *"Our acquisitions desk is reviewing county records and GIS data. We will reach out to you within 24 business hours."*
-     - Direct button to submit another parcel or contact the desk.
-     - **Strictly No Admin Tools**: No "Drive Vault" buttons, no "Sheets Sync" buttons, and no raw CRM debug payloads on this public page. (Admin tools remain securely available via dedicated admin entry points).
+| Col | Field Name | Index | Extraction & Formatting Logic |
+|---|---|---|---|
+| A | `flow` | 0 | `String(lead.flow \|\| 'sell')` |
+| B | `fullName` | 1 | `String(lead.fullName \|\| '')` |
+| C | `phone` | 2 | `String(lead.phone \|\| '')` |
+| D | `email` | 3 | `String(lead.email \|\| '')` |
+| E | `propertyAddress` | 4 | `String(lead.propertyAddress \|\| '')` |
+| F | `parcelOrAddress` | 5 | `String(lead.parcelOrAddress \|\| lead.propertyAddress \|\| '')` |
+| G | `parcelNumber` | 6 | `String(lead.parcelNumber \|\| '')` |
+| H | `county` | 7 | `String(lead.county \|\| '')` |
+| I | `state` | 8 | `String(lead.state \|\| '')` |
+| J | `city` | 9 | `String(lead.city \|\| '')` |
+| K | `zipCode` | 10 | `String(lead.zipCode \|\| '')` |
+| L | `acreage` | 11 | `String(lead.acreage \|\| '')` |
+| M | `lotSizeUnit` | 12 | `String(lead.lotSizeUnit \|\| '')` |
+| N | `lotSizeRawValue` | 13 | `String(lead.lotSizeRawValue \|\| '')` |
+| O | `unknownAddress` | 14 | `lead.unknownAddress !== undefined && lead.unknownAddress !== null ? String(lead.unknownAddress) : ""` |
+| P | `gpsCoordinates` | 15 | `lead.gpsCoordinates && lead.gpsCoordinates.lat != null && lead.gpsCoordinates.lng != null ? `${lead.gpsCoordinates.lat}, ${lead.gpsCoordinates.lng}` : (lead.gpsCoordinates?.formatted \|\| "")` |
+| Q | `documentAttachment` | 16 | `lead.documentAttachment ? (lead.documentAttachment.name \|\| lead.documentAttachment.fileName \|\| "") : ""` |
+| R | `utilityWater` | 17 | `String(lead.utilityWater \|\| '')` |
+| S | `utilitySewer` | 18 | `String(lead.utilitySewer \|\| '')` |
+| T | `utilityElectric` | 19 | `String(lead.utilityElectric \|\| '')` |
+| U | `utilityHeatingGas` | 20 | `String(lead.utilityHeatingGas \|\| '')` |
+| V | `utilityInternet` | 21 | `String(lead.utilityInternet \|\| '')` |
+| W | `utilityDrainage` | 22 | `String(lead.utilityDrainage \|\| '')` |
+| X | `ownershipStatus` | 23 | `String(lead.ownershipStatus \|\| '')` |
+| Y | `probateDocumentationStatus` | 24 | `String(lead.probateDocumentationStatus \|\| '')` |
+| Z | `hasProbateDocumentation` | 25 | `lead.hasProbateDocumentation !== undefined && lead.hasProbateDocumentation !== null ? String(lead.hasProbateDocumentation) : ""` |
+| AA | `askingPrice` | 26 | `String(lead.askingPrice \|\| '')` |
+| AB | `motivation` | 27 | `String(lead.motivation \|\| '')` |
+| AC | `timeline` | 28 | `String(lead.timeline \|\| '')` |
+| AD | `occupancyCondition` | 29 | `String(lead.occupancyCondition \|\| '')` |
+| AE | `notes` | 30 | `String(lead.notes \|\| '')` |
+| AF | `smsTransactionalConsent` | 31 | `lead.smsTransactionalConsent !== undefined && lead.smsTransactionalConsent !== null ? String(lead.smsTransactionalConsent) : ""` |
+| AG | `smsMarketingConsent` | 32 | `lead.smsMarketingConsent !== undefined && lead.smsMarketingConsent !== null ? String(lead.smsMarketingConsent) : ""` |
+| AH | `consentTimestamp` | 33 | `String(lead.consentTimestamp \|\| '')` |
+| AI | `consentIpHint` | 34 | `String(lead.consentIpHint \|\| '')` |
+| AJ | `userAgent` | 35 | `String(lead.userAgent \|\| '')` |
+| AK | `disclosureVersion` | 36 | `String(lead.disclosureVersion \|\| '')` |
+| AL | `nonSharingCovenantAccepted` | 37 | `lead.nonSharingCovenantAccepted !== undefined && lead.nonSharingCovenantAccepted !== null ? String(lead.nonSharingCovenantAccepted) : ""` |
+| AM | `exactConsentDisclosureText` | 38 | `String(lead.exactConsentDisclosureText \|\| '')` |
+| AN | `additionalData` | 39 | `lead.additionalData ? JSON.stringify(lead.additionalData) : ""` |
 
 ---
 
-### 3. Technical Implementation & Data Strategy
+### 3. Implementation Code Target (`server/leadService.ts`)
 
-#### Component Responsibilities
-- `src/components/Header.tsx`:
-  - Updated contact links with pre-populated phone, SMS, and mailto hrefs.
-  - Multi-platform theme switcher with touch optimization.
-- `src/components/ParcelPinDropModal.tsx` *(New Component)*:
-  - Full-screen modal with map viewport, pin cursor, search/center tools, and precise coordinate readout (`latitude.toFixed(6)`, `longitude.toFixed(6)`).
-  - Confirms selection and passes coordinates back to parent form.
-- `src/components/IntakePipeline.tsx`:
-  - 4-step pipeline implementation incorporating Google Places search, "Unknown Address" fallbacks, acreage unit conversions, 6-section utility dropdowns, conditional probate inquiry, Step 4 Asking Price hero card, strict Phone/Email validation, and clean public confirmation screen.
-- `src/services/leadSubmission.ts`:
-  - Typed payload extensions for utilities (`utilityWater`, `utilitySewer`, etc.), probate status, uploaded file metadata, and GPS coordinates.
-- `server.ts` & `server/leadService.ts`:
-  - Robust server-side logging for `ACQUISITION_NOTIFICATION_EMAIL`, `LEAD_WEBHOOK_URL`, and `RESEND_API_KEY`.
-  - Non-blocking asynchronous notifications with comprehensive `try/catch` error telemetry logged to server console.
+```ts
+// Central Google Sheets Ledger Configuration
+const GOOGLE_SHEETS_SPREADSHEET_ID = '1QYduEY1P6OL6vOPUkEZCCOUB8jgSBn6xYmW4FaHIB0w';
+
+/**
+ * Appends an incoming lead directly to the central Google Sheets master ledger.
+ * Routes dynamically to 'Buyer Intake'!A:AN or 'Seller Intake'!A:AN with 40 mapped columns.
+ */
+export async function appendLeadToSheet(lead: LeadSubmissionData): Promise<boolean> {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Target Range with quoted sheet names containing spaces
+    const targetRange = lead.flow === 'buy' ? "'Buyer Intake'!A:AN" : "'Seller Intake'!A:AN";
+
+    // Format GPS coordinates safely without "undefined, undefined"
+    const gpsCoordValue =
+      lead.gpsCoordinates && lead.gpsCoordinates.lat != null && lead.gpsCoordinates.lng != null
+        ? `${lead.gpsCoordinates.lat}, ${lead.gpsCoordinates.lng}`
+        : (lead.gpsCoordinates?.formatted || "");
+
+    // Format Document Attachment safely
+    const docAttachmentValue =
+      lead.documentAttachment
+        ? (lead.documentAttachment.name || lead.documentAttachment.fileName || "")
+        : "";
+
+    // 40 columns strictly in order
+    const rowValues: string[] = [
+      lead.flow ? String(lead.flow) : 'sell',                                                 // [0]  flow
+      lead.fullName ? String(lead.fullName) : '',                                             // [1]  fullName
+      lead.phone ? String(lead.phone) : '',                                                   // [2]  phone
+      lead.email ? String(lead.email) : '',                                                   // [3]  email
+      lead.propertyAddress ? String(lead.propertyAddress) : '',                               // [4]  propertyAddress
+      lead.parcelOrAddress ? String(lead.parcelOrAddress) : (lead.propertyAddress || ''),     // [5]  parcelOrAddress
+      lead.parcelNumber ? String(lead.parcelNumber) : '',                                     // [6]  parcelNumber
+      lead.county ? String(lead.county) : '',                                                 // [7]  county
+      lead.state ? String(lead.state) : '',                                                   // [8]  state
+      lead.city ? String(lead.city) : '',                                                     // [9]  city
+      lead.zipCode ? String(lead.zipCode) : '',                                               // [10] zipCode
+      lead.acreage ? String(lead.acreage) : '',                                               // [11] acreage
+      lead.lotSizeUnit ? String(lead.lotSizeUnit) : '',                                       // [12] lotSizeUnit
+      lead.lotSizeRawValue ? String(lead.lotSizeRawValue) : '',                               // [13] lotSizeRawValue
+      lead.unknownAddress !== undefined && lead.unknownAddress !== null ? String(lead.unknownAddress) : '', // [14] unknownAddress
+      gpsCoordValue,                                                                          // [15] gpsCoordinates
+      docAttachmentValue,                                                                     // [16] documentAttachment
+      lead.utilityWater ? String(lead.utilityWater) : '',                                     // [17] utilityWater
+      lead.utilitySewer ? String(lead.utilitySewer) : '',                                     // [18] utilitySewer
+      lead.utilityElectric ? String(lead.utilityElectric) : '',                               // [19] utilityElectric
+      lead.utilityHeatingGas ? String(lead.utilityHeatingGas) : '',                           // [20] utilityHeatingGas
+      lead.utilityInternet ? String(lead.utilityInternet) : '',                               // [21] utilityInternet
+      lead.utilityDrainage ? String(lead.utilityDrainage) : '',                               // [22] utilityDrainage
+      lead.ownershipStatus ? String(lead.ownershipStatus) : '',                               // [23] ownershipStatus
+      lead.probateDocumentationStatus ? String(lead.probateDocumentationStatus) : '',         // [24] probateDocumentationStatus
+      lead.hasProbateDocumentation !== undefined && lead.hasProbateDocumentation !== null ? String(lead.hasProbateDocumentation) : '', // [25] hasProbateDocumentation
+      lead.askingPrice ? String(lead.askingPrice) : '',                                       // [26] askingPrice
+      lead.motivation ? String(lead.motivation) : '',                                         // [27] motivation
+      lead.timeline ? String(lead.timeline) : '',                                             // [28] timeline
+      lead.occupancyCondition ? String(lead.occupancyCondition) : '',                         // [29] occupancyCondition
+      lead.notes ? String(lead.notes) : '',                                                   // [30] notes
+      lead.smsTransactionalConsent !== undefined && lead.smsTransactionalConsent !== null ? String(lead.smsTransactionalConsent) : '', // [31] smsTransactionalConsent
+      lead.smsMarketingConsent !== undefined && lead.smsMarketingConsent !== null ? String(lead.smsMarketingConsent) : '',             // [32] smsMarketingConsent
+      lead.consentTimestamp ? String(lead.consentTimestamp) : '',                             // [33] consentTimestamp
+      lead.consentIpHint ? String(lead.consentIpHint) : '',                                   // [34] consentIpHint
+      lead.userAgent ? String(lead.userAgent) : '',                                           // [35] userAgent
+      lead.disclosureVersion ? String(lead.disclosureVersion) : '',                           // [36] disclosureVersion
+      lead.nonSharingCovenantAccepted !== undefined && lead.nonSharingCovenantAccepted !== null ? String(lead.nonSharingCovenantAccepted) : '', // [37] nonSharingCovenantAccepted
+      lead.exactConsentDisclosureText ? String(lead.exactConsentDisclosureText) : '',         // [38] exactConsentDisclosureText
+      lead.additionalData ? JSON.stringify(lead.additionalData) : '',                         // [39] additionalData
+    ];
+
+    // Sanitize any residual nulls or undefined values to empty string
+    const sanitizedRowValues = rowValues.map((val) => (val === undefined || val === null ? '' : String(val)));
+
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
+      range: targetRange,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [sanitizedRowValues],
+      },
+    });
+
+    console.log(`[LeadService] Lead ${(lead as any).id || lead.fullName || 'submission'} successfully appended to ${targetRange} (HTTP ${response.status})`);
+    return true;
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn('[LeadService] Google Sheets append notice (non-blocking):', errorMsg);
+    return false;
+  }
+}
+```
 
 ---
 
 ### 4. Verification Plan
 
-1. **Build & Lint Verification**:
-   - Run `compile_applet` and `lint_applet` to ensure zero compilation or type errors.
-2. **Header Action Verification**:
-   - Test Phone link (`tel:7206490734`).
-   - Test SMS link with pre-populated body.
-   - Test Email link with subject and body template.
-   - Test Theme Switcher on mobile touch emulation and desktop clicks.
-3. **Pipeline Verification**:
-   - **Step 1**: Test address autocomplete suggestion and auto-population; test "I do not know address" toggle with file upload preview and `ParcelPinDropModal` coordinate capture; test Acres vs. Sq Ft conversion.
-   - **Step 2**: Verify all 6 utility dropdowns render the exact options and descriptions.
-   - **Step 3**: Verify unique features placeholder; verify conditional probate question triggers only on Inherited/Probate/Trust; verify Asking Price is absent.
-   - **Step 4**: Verify animated Asking Price spotlight card; test submission without Phone or Email to ensure validation triggers; test submission with Phone + Email and unchecked SMS box to verify submission succeeds.
-   - **Confirmation**: Verify the public confirmation screen is 100% clean of admin widgets.
-4. **Backend Notification Verification**:
-   - Verify server log output for lead persistence, audit file append, and email/webhook dispatch.
+1. **Array Length & Alignment**:
+   - Assert `sanitizedRowValues.length === 40` strictly matching columns `A` through `AN`.
+2. **Type Checking & Linting**:
+   - Run `lint_applet` (`tsc --noEmit`) to verify zero compile or type errors.
+3. **Build Compilation**:
+   - Run `compile_applet` to confirm successful production build.

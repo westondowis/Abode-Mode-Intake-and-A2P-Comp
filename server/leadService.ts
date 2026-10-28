@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 // Central Google Sheets Ledger Configuration
-const GOOGLE_SHEETS_SPREADSHEET_ID = '1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28';
+const GOOGLE_SHEETS_SPREADSHEET_ID = '1QYduEY1P6OL6vOPUkEZCCOUB8jgSBn6xYmW4FaHIB0w';
 
 // Data audit log paths
 const DATA_DIR = path.resolve(ROOT_DIR, 'data');
@@ -48,9 +48,12 @@ export interface LeadSubmissionData {
   phone?: string;
   email?: string;
   propertyAddress?: string;
+  parcelOrAddress?: string;
   parcelNumber?: string;
   county?: string;
   state?: string;
+  city?: string;
+  zipCode?: string;
   acreage?: string;
   askingPrice?: string;
   motivation?: string;
@@ -66,12 +69,13 @@ export interface LeadSubmissionData {
   utilityDrainage?: string;
   // Location Fallbacks & Unit Sizing
   unknownAddress?: boolean;
-  gpsCoordinates?: { lat: number; lng: number } | null;
-  documentAttachment?: { fileName: string; fileSize?: number; fileType?: string; base64Data?: string } | null;
+  gpsCoordinates?: { lat?: number; lng?: number; formatted?: string } | null;
+  documentAttachment?: { name?: string; fileName?: string; fileSize?: number; fileType?: string; base64Data?: string } | null;
   lotSizeUnit?: string;
   lotSizeRawValue?: string;
   ownershipStatus?: string;
   probateDocumentationStatus?: string;
+  hasProbateDocumentation?: string | boolean;
   // A2P 10DLC Compliance Fields
   smsTransactionalConsent?: boolean;
   smsMarketingConsent?: boolean;
@@ -82,6 +86,7 @@ export interface LeadSubmissionData {
   disclosureVersion?: string;
   nonSharingCovenantAccepted?: boolean;
   exactConsentDisclosureText?: string;
+  additionalData?: Record<string, unknown>;
   submittedAt: string;
   status?: string;
   [key: string]: unknown;
@@ -192,20 +197,34 @@ export async function createUnderwritingTask(lead: LeadSubmissionData): Promise<
 }
 
 /**
- * Appends an incoming lead directly to the central Google Sheets ledger:
- * Sheet ID: 1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28
+ * Appends an incoming lead directly to the central Google Sheets master ledger:
+ * Sheet ID: 1QYduEY1P6OL6vOPUkEZCCOUB8jgSBn6xYmW4FaHIB0w
  *
- * Exact Array Index Order:
- * [0]: leadId
- * [1]: submittedAt (ISO String)
- * [2]: propertyType
- * [3]: address
- * [4]: askingPrice
- * [5]: sellerName
- * [6]: sellerPhone
- * [7]: sellerEmail
- * [8]: source
- * [9]: notes
+ * Target Tabs:
+ * - 'Buyer Intake'!A:AN (when lead.flow === 'buy')
+ * - 'Seller Intake'!A:AN (when lead.flow === 'sell' or default)
+ *
+ * Exact 40-Column Array Index Order (Columns A through AN):
+ *  [0] flow                         [1] fullName
+ *  [2] phone                        [3] email
+ *  [4] propertyAddress              [5] parcelOrAddress
+ *  [6] parcelNumber                 [7] county
+ *  [8] state                        [9] city
+ * [10] zipCode                     [11] acreage
+ * [12] lotSizeUnit                 [13] lotSizeRawValue
+ * [14] unknownAddress              [15] gpsCoordinates ('lat, lng')
+ * [16] documentAttachment          [17] utilityWater
+ * [18] utilitySewer                [19] utilityElectric
+ * [20] utilityHeatingGas           [21] utilityInternet
+ * [22] utilityDrainage             [23] ownershipStatus
+ * [24] probateDocumentationStatus  [25] hasProbateDocumentation
+ * [26] askingPrice                 [27] motivation
+ * [28] timeline                    [29] occupancyCondition
+ * [30] notes                       [31] smsTransactionalConsent
+ * [32] smsMarketingConsent         [33] consentTimestamp
+ * [34] consentIpHint               [35] userAgent
+ * [36] disclosureVersion           [37] nonSharingCovenantAccepted
+ * [38] exactConsentDisclosureText  [39] additionalData
  */
 export async function appendLeadToSheet(lead: LeadSubmissionData): Promise<boolean> {
   try {
@@ -214,48 +233,79 @@ export async function appendLeadToSheet(lead: LeadSubmissionData): Promise<boole
     });
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const leadId = String(lead.id || '');
-    const submittedAt = String(lead.submittedAt || new Date().toISOString());
-    const propertyType = String(
-      lead.propertyType ||
-        (lead.flow === 'sell' ? 'Single Family or Land' : 'Land Buyer Criteria')
-    );
-    const address = String(
-      lead.propertyAddress ||
-        lead.parcelNumber ||
-        (lead.county ? `${lead.county} County, ${lead.state || 'CO'}` : '')
-    );
-    const askingPrice = String(lead.askingPrice || '');
-    const sellerName = String(lead.fullName || '');
-    const sellerPhone = String(lead.phone || '');
-    const sellerEmail = String(lead.email || '');
-    const source = String(lead.source || lead.leadSource || 'Web Intake Form');
-    const notes = String(lead.notes || lead.motivation || '');
+    // Target Range with quoted sheet names containing spaces
+    const targetRange = lead.flow === 'buy' ? "'Buyer Intake'!A:AN" : "'Seller Intake'!A:AN";
 
-    const rowValues = [
-      leadId,        // [0]: leadId
-      submittedAt,   // [1]: submittedAt (ISO String)
-      propertyType,  // [2]: propertyType
-      address,       // [3]: address
-      askingPrice,   // [4]: askingPrice
-      sellerName,    // [5]: sellerName
-      sellerPhone,   // [6]: sellerPhone
-      sellerEmail,   // [7]: sellerEmail
-      source,        // [8]: source
-      notes,         // [9]: notes
+    // Format GPS coordinates safely without "undefined, undefined"
+    const gpsCoordValue =
+      lead.gpsCoordinates && lead.gpsCoordinates.lat != null && lead.gpsCoordinates.lng != null
+        ? `${lead.gpsCoordinates.lat}, ${lead.gpsCoordinates.lng}`
+        : (lead.gpsCoordinates?.formatted || "");
+
+    // Format Document Attachment safely
+    const docAttachmentValue =
+      lead.documentAttachment
+        ? (lead.documentAttachment.name || lead.documentAttachment.fileName || "")
+        : "";
+
+    // 40 columns strictly in order matching [0] to [39]
+    const rowValues: string[] = [
+      lead.flow ? String(lead.flow) : 'sell',                                                 // [0]  flow
+      lead.fullName ? String(lead.fullName) : '',                                             // [1]  fullName
+      lead.phone ? String(lead.phone) : '',                                                   // [2]  phone
+      lead.email ? String(lead.email) : '',                                                   // [3]  email
+      lead.propertyAddress ? String(lead.propertyAddress) : '',                               // [4]  propertyAddress
+      lead.parcelOrAddress ? String(lead.parcelOrAddress) : (lead.propertyAddress || ''),     // [5]  parcelOrAddress
+      lead.parcelNumber ? String(lead.parcelNumber) : '',                                     // [6]  parcelNumber
+      lead.county ? String(lead.county) : '',                                                 // [7]  county
+      lead.state ? String(lead.state) : '',                                                   // [8]  state
+      lead.city ? String(lead.city) : '',                                                     // [9]  city
+      lead.zipCode ? String(lead.zipCode) : '',                                               // [10] zipCode
+      lead.acreage ? String(lead.acreage) : '',                                               // [11] acreage
+      lead.lotSizeUnit ? String(lead.lotSizeUnit) : '',                                       // [12] lotSizeUnit
+      lead.lotSizeRawValue ? String(lead.lotSizeRawValue) : '',                               // [13] lotSizeRawValue
+      lead.unknownAddress !== undefined && lead.unknownAddress !== null ? String(lead.unknownAddress) : '', // [14] unknownAddress
+      gpsCoordValue,                                                                          // [15] gpsCoordinates
+      docAttachmentValue,                                                                     // [16] documentAttachment
+      lead.utilityWater ? String(lead.utilityWater) : '',                                     // [17] utilityWater
+      lead.utilitySewer ? String(lead.utilitySewer) : '',                                     // [18] utilitySewer
+      lead.utilityElectric ? String(lead.utilityElectric) : '',                               // [19] utilityElectric
+      lead.utilityHeatingGas ? String(lead.utilityHeatingGas) : '',                           // [20] utilityHeatingGas
+      lead.utilityInternet ? String(lead.utilityInternet) : '',                               // [21] utilityInternet
+      lead.utilityDrainage ? String(lead.utilityDrainage) : '',                               // [22] utilityDrainage
+      lead.ownershipStatus ? String(lead.ownershipStatus) : '',                               // [23] ownershipStatus
+      lead.probateDocumentationStatus ? String(lead.probateDocumentationStatus) : '',         // [24] probateDocumentationStatus
+      lead.hasProbateDocumentation !== undefined && lead.hasProbateDocumentation !== null ? String(lead.hasProbateDocumentation) : '', // [25] hasProbateDocumentation
+      lead.askingPrice ? String(lead.askingPrice) : '',                                       // [26] askingPrice
+      lead.motivation ? String(lead.motivation) : '',                                         // [27] motivation
+      lead.timeline ? String(lead.timeline) : '',                                             // [28] timeline
+      lead.occupancyCondition ? String(lead.occupancyCondition) : '',                         // [29] occupancyCondition
+      lead.notes ? String(lead.notes) : '',                                                   // [30] notes
+      lead.smsTransactionalConsent !== undefined && lead.smsTransactionalConsent !== null ? String(lead.smsTransactionalConsent) : '', // [31] smsTransactionalConsent
+      lead.smsMarketingConsent !== undefined && lead.smsMarketingConsent !== null ? String(lead.smsMarketingConsent) : '',             // [32] smsMarketingConsent
+      lead.consentTimestamp ? String(lead.consentTimestamp) : '',                             // [33] consentTimestamp
+      lead.consentIpHint ? String(lead.consentIpHint) : '',                                   // [34] consentIpHint
+      lead.userAgent ? String(lead.userAgent) : '',                                           // [35] userAgent
+      lead.disclosureVersion ? String(lead.disclosureVersion) : '',                           // [36] disclosureVersion
+      lead.nonSharingCovenantAccepted !== undefined && lead.nonSharingCovenantAccepted !== null ? String(lead.nonSharingCovenantAccepted) : '', // [37] nonSharingCovenantAccepted
+      lead.exactConsentDisclosureText ? String(lead.exactConsentDisclosureText) : '',         // [38] exactConsentDisclosureText
+      lead.additionalData ? JSON.stringify(lead.additionalData) : '',                         // [39] additionalData
     ];
+
+    // Sanitize any residual nulls or undefined values to empty string ensuring exactly 40 elements
+    const sanitizedRowValues = rowValues.map((val) => (val === undefined || val === null ? '' : String(val)));
 
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: GOOGLE_SHEETS_SPREADSHEET_ID,
-      range: 'A:J',
+      range: targetRange,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [rowValues],
+        values: [sanitizedRowValues],
       },
     });
 
-    console.log(`[LeadService] Lead ${leadId} successfully appended to central Google Sheets ledger (HTTP ${response.status})`);
+    console.log(`[LeadService] Lead ${(lead as any).id || lead.fullName || 'submission'} successfully appended to ${targetRange} (HTTP ${response.status})`);
     return true;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -267,7 +317,7 @@ export async function appendLeadToSheet(lead: LeadSubmissionData): Promise<boole
 /**
  * Persists lead to Firestore and immutable backup JSON audit file,
  * creates automated Underwriting Task,
- * appends lead to central Google Sheets ledger,
+ * appends lead to central Google Sheets master ledger,
  * then triggers asynchronous alerts to the acquisition desk without blocking.
  */
 export async function processIncomingLead(leadData: LeadSubmissionData): Promise<{
@@ -305,7 +355,7 @@ export async function processIncomingLead(leadData: LeadSubmissionData): Promise
     }
   }
 
-  // 3. Central Google Sheets Ledger Appending (Sheet ID: 1hx94Juj4Ru7aRdPlDDbZQ4IjxmCBJWD2mV8jJ7OYa28)
+  // 3. Central Google Sheets Master Ledger Appending (Sheet ID: 1QYduEY1P6OL6vOPUkEZCCOUB8jgSBn6xYmW4FaHIB0w)
   try {
     const sheetSuccess = await appendLeadToSheet(leadData);
     if (sheetSuccess) {
